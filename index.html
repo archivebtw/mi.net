@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0b0e">
-<meta name="mi-net-build" content="phone-auth-v7">
+<meta name="mi-net-build" content="email-auth-no-phone-v8">
 <title>mi.net — talk. gather. create.</title>
 
 <link rel="stylesheet" href="css/base.css">
@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="css/pages.css">
 <link rel="stylesheet" href="css/overlays.css?v=20260810-4">
 <link rel="stylesheet" href="css/loader.css">
-<link rel="stylesheet" href="css/auth.css?v=20260810-7">
+<link rel="stylesheet" href="css/auth.css?v=20260810-8">
 <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body class="is-loading auth-pending">
@@ -66,8 +66,8 @@
         </div>
 
         <label class="auth-field">
-          <span>Email or phone</span>
-          <input id="signInEmail" type="text" autocomplete="username" required placeholder="you@example.com or +15551234567">
+          <span>Email</span>
+          <input id="signInEmail" type="email" autocomplete="email" required placeholder="you@example.com">
         </label>
 
         <label class="auth-field">
@@ -85,7 +85,7 @@
       <form class="auth-form" id="signUpForm" autocomplete="on" hidden>
         <div class="auth-heading">
           <h1>Create your mi.net.</h1>
-          <p>A verified phone number is required to create a mi.net account.</p>
+          <p>Your account and public profile are stored in Supabase.</p>
         </div>
 
         <label class="auth-field">
@@ -103,13 +103,6 @@
         </label>
 
         <label class="auth-field">
-          <span>Phone</span>
-          <input id="signUpPhone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+15551234567">
-          <small class="auth-field-hint">Use international format with country code.</small>
-          <small class="auth-field-error" id="signUpPhoneError" hidden></small>
-        </label>
-
-        <label class="auth-field">
           <span>Email</span>
           <input id="signUpEmail" type="email" autocomplete="email" required placeholder="you@example.com">
         </label>
@@ -123,39 +116,7 @@
         </label>
 
         <button class="auth-submit" type="submit" id="signUpSubmit">Create account</button>
-        <p class="auth-legal">By creating an account you agree to the mi.net community rules and SMS verification.</p>
-      </form>
-
-
-      <form class="auth-form" id="phoneVerifyForm" hidden>
-        <button class="auth-back" type="button" id="cancelPhoneVerify">← Change registration details</button>
-        <div class="auth-heading">
-          <h1>Verify your phone.</h1>
-          <p>Enter the 6-digit code sent to <strong id="phoneVerifyTarget"></strong>.</p>
-        </div>
-
-        <label class="auth-field">
-          <span>SMS code</span>
-          <input
-            id="phoneOtpCode"
-            class="auth-otp-input"
-            type="text"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            maxlength="6"
-            pattern="[0-9]{6}"
-            required
-            placeholder="000000"
-          >
-          <small class="auth-field-error" id="phoneOtpError" hidden></small>
-        </label>
-
-        <button class="auth-submit" type="submit" id="verifyPhoneSubmit">Verify phone</button>
-
-        <div class="auth-resend-row">
-          <span id="phoneResendStatus">You can request another code in 60s.</span>
-          <button type="button" class="auth-link-button auth-inline-link" id="resendPhoneOtp" disabled>Resend code</button>
-        </div>
+        <p class="auth-legal">By creating an account you agree to follow the mi.net community rules.</p>
       </form>
 
       <form class="auth-form" id="forgotForm" hidden>
@@ -341,6 +302,6 @@
 <script src="js/moderation.js"></script>
 <script src="js/create.js?v=20260810-4"></script>
 <script src="js/app.js?v=20260810-5"></script>
-<script src="js/auth.js?v=20260810-7"></script>
+<script src="js/auth.js?v=20260810-8"></script>
 </body>
 </html>

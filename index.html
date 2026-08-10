@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>mi.net — your internet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- SEGMENT 1: LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        <button class="brand" data-view="home" aria-label="mi.net home">mi.net</button>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-view="home">
+            <span class="icon" data-icon="home"></span><span>Home</span>
+          </button>
+          <button class="nav-item" data-view="explore">
+            <span class="icon" data-icon="search"></span><span>Explore</span>
+          </button>
+          <button class="nav-item" data-view="notifications">
+            <span class="icon" data-icon="bell"></span><span>Notifications</span>
+            <span class="nav-badge">3</span>
+          </button>
+          <button class="nav-item" data-view="messages">
+            <span class="icon" data-icon="mail"></span><span>Messages</span>
+          </button>
+          <button class="nav-item" data-view="communities">
+            <span class="icon" data-icon="users"></span><span>Communities</span>
+          </button>
+          <button class="nav-item" data-view="bookmarks">
+            <span class="icon" data-icon="bookmark"></span><span>Bookmarks</span>
+          </button>
+          <button class="nav-item" data-view="profile">
+            <span class="icon" data-icon="user"></span><span>Profile</span>
+          </button>
+        </nav>
+
+        <button class="primary-btn create-post-open">Create post</button>
+
+        <button class="account-card" data-view="profile">
+          <span class="avatar avatar-dark">KD</span>
+          <span class="account-copy">
+            <strong>Kim Dung</strong>
+            <small>@kimdung</small>
+          </span>
+          <span class="more-dots">•••</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- SEGMENT 2: CENTRAL APPLICATION AREA -->
+    <main class="content" id="content" aria-live="polite"></main>
+
+    <!-- SEGMENT 3: RIGHT SIDEBAR -->
+    <aside class="rightbar">
+      <div class="rightbar-inner">
+        <label class="search-box">
+          <span class="icon" data-icon="search"></span>
+          <input id="globalSearch" type="search" placeholder="Search mi.net" />
+        </label>
+
+        <section class="side-panel">
+          <div class="side-panel-header">
+            <h2>Trending</h2>
+            <button class="text-btn" data-view="explore">See all</button>
+          </div>
+          <button class="trend-item" data-search="#indieweb">
+            <small>Technology</small>
+            <strong>#indieweb</strong>
+            <span>1.8k posts</span>
+          </button>
+          <button class="trend-item" data-search="#minimalism">
+            <small>Design</small>
+            <strong>#minimalism</strong>
+            <span>924 posts</span>
+          </button>
+          <button class="trend-item" data-search="#buildinpublic">
+            <small>Internet</small>
+            <strong>#buildinpublic</strong>
+            <span>712 posts</span>
+          </button>
+        </section>
+
+        <section class="side-panel">
+          <div class="side-panel-header"><h2>Who to follow</h2></div>
+
+          <div class="follow-row">
+            <span class="avatar">AM</span>
+            <span class="follow-copy"><strong>Alex Morgan</strong><small>@alex</small></span>
+            <button class="follow-btn">Follow</button>
+          </div>
+          <div class="follow-row">
+            <span class="avatar">NO</span>
+            <span class="follow-copy"><strong>Nora Ito</strong><small>@nora</small></span>
+            <button class="follow-btn">Follow</button>
+          </div>
+          <div class="follow-row">
+            <span class="avatar">LV</span>
+            <span class="follow-copy"><strong>Leo V.</strong><small>@leov</small></span>
+            <button class="follow-btn">Follow</button>
+          </div>
+        </section>
+
+        <footer class="footer-links">
+          <a href="#">Terms</a><a href="#">Privacy</a><a href="#">About</a>
+          <span>© 2026 mi.net</span>
+        </footer>
+      </div>
+    </aside>
+  </div>
+
+  <!-- SEGMENT 4: MOBILE NAVIGATION -->
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button class="mobile-nav-item active" data-view="home"><span class="icon" data-icon="home"></span></button>
+    <button class="mobile-nav-item" data-view="explore"><span class="icon" data-icon="search"></span></button>
+    <button class="mobile-create create-post-open" aria-label="Create post"><span class="icon" data-icon="plus"></span></button>
+    <button class="mobile-nav-item" data-view="notifications"><span class="icon" data-icon="bell"></span></button>
+    <button class="mobile-nav-item" data-view="profile"><span class="icon" data-icon="user"></span></button>
+  </nav>
+
+  <!-- SEGMENT 5: POST MODAL -->
+  <div class="modal-backdrop" id="postModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <button class="icon-btn modal-close" aria-label="Close"><span class="icon" data-icon="x"></span></button>
+        <strong id="modalTitle">Create post</strong>
+        <button class="compact-primary" id="modalPostBtn">Post</button>
+      </div>
+      <div class="modal-composer">
+        <span class="avatar avatar-dark">KD</span>
+        <textarea id="modalPostText" maxlength="400" placeholder="What's on your mind?"></textarea>
+      </div>
+      <div class="modal-tools">
+        <div>
+          <button class="tool-btn" aria-label="Add image"><span class="icon" data-icon="image"></span></button>
+          <button class="tool-btn" aria-label="Add link"><span class="icon" data-icon="link"></span></button>
+          <button class="tool-btn" aria-label="Add poll"><span class="icon" data-icon="bar-chart"></span></button>
+        </div>
+        <span class="char-count"><span id="modalCharCount">0</span>/400</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEGMENT 6: TOASTS -->
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

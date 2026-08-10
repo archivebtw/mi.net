@@ -142,4 +142,5 @@ function nav(v){
  if(v==='explore')renderExplore();
  if(v==='profile')renderProfile();
  document.getElementById('mobileTitle').textContent=v[0].toUpperCase()+v.slice(1);
+ if(typeof syncMobileNavigation==='function')syncMobileNavigation(v);
 }

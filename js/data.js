@@ -2,7 +2,7 @@
 function initialState(){
  return {
   me:{name:'Kim Dung',handle:'@kimdung',initials:'KD',bio:'Building a quieter corner of the internet.'},
-  settings:{dark:false,compact:false},
+  settings:{dark:true,compact:false},
   muted:[],
   conversations:[
    {id:'alex',kind:'direct',name:'Alex Morgan',handle:'@alex',initials:'AM',preview:'окей, тогда завтра',time:'2m',unread:2,subtitle:'online',desc:'Designer, developer and internet person.',messages:[

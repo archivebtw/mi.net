@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#ffffff">
-<title>mi.net — modular functional prototype</title>
+<meta name="theme-color" content="#0b0b0e">
+<title>mi.net — talk. gather. create.</title>
 
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/shell.css">
@@ -81,6 +81,13 @@
   <div class="mobiletitle" id="mobileTitle">Chats</div>
   <button class="iconbtn" id="mobileCreate"><span class="icon" data-icon="plus"></span></button>
 </header>
+
+<nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile navigation">
+  <button class="mobile-nav-btn active" data-mobile-view="chats"><span class="icon" data-icon="message"></span><span>Chats</span></button>
+  <button class="mobile-nav-btn" data-mobile-view="groups"><span class="icon" data-icon="users"></span><span>Groups</span></button>
+  <button class="mobile-nav-btn" data-mobile-view="publics"><span class="icon" data-icon="hash"></span><span>Publics</span></button>
+  <button class="mobile-nav-btn" data-mobile-view="profile"><span class="icon" data-icon="user"></span><span>Profile</span></button>
+</nav>
 
 <input id="filePicker" type="file" hidden>
 
@@ -168,6 +175,7 @@
 <script src="js/icons.js"></script>
 <script src="js/data.js"></script>
 <script src="js/state.js"></script>
+<script src="js/media.js"></script>
 <script src="js/navigation.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/features.js"></script>

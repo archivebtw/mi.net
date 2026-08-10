@@ -1,32 +1,67 @@
 // Attachments, global events and application boot
-function readAttachmentAsDataUrl(file){
- return new Promise((resolve,reject)=>{
-  const reader=new FileReader();
-  reader.onload=()=>resolve(reader.result);
-  reader.onerror=()=>reject(new Error('Unable to read file'));
-  reader.readAsDataURL(file);
- });
-}
-
 document.getElementById('filePicker').onchange=async e=>{
  const f=e.target.files[0];
  if(!f)return;
+
  const type=f.type||'application/octet-stream';
- try{
-  const url=(type.startsWith('image/')||type.startsWith('video/'))?await readAttachmentAsDataUrl(f):'';
-  pendingAttachment={name:f.name,type,size:f.size,url};
+ const isRichMedia=type.startsWith('image/')||type.startsWith('video/');
+
+ if(isRichMedia&&f.size>80*1024*1024){
   e.target.value='';
-  let c=current();
-  if(c&&!(c.kind==='public'&&c.mode==='hybrid'))renderChat(c);
+  toast('Media is too large. Maximum demo size is 80 MB.');
+  return;
+ }
+
+ try{
+  pendingAttachment=isRichMedia
+   ?await miStoreMediaFile(f)
+   :{name:f.name,type,size:f.size};
+
+  e.target.value='';
+  const c=current();
+  if(c)renderConversation(c);
   toast(type.startsWith('image/')?'Photo ready to send':type.startsWith('video/')?'Video ready to send':'Attachment ready to send');
  }catch(err){
   e.target.value='';
-  toast('Could not load attachment');
+  toast('Could not save attachment');
  }
 };
 
+function setFilter(nextFilter){
+ filter=nextFilter;
+ document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x.dataset.filter===nextFilter));
+ if(view==='chats')renderList();
+}
+
+function syncMobileNavigation(v){
+ document.querySelectorAll('[data-mobile-view]').forEach(btn=>{
+  const target=btn.dataset.mobileView;
+  const activeState=
+   target==='groups' ? (v==='chats'&&filter==='group') :
+   target==='chats' ? (v==='chats'&&filter!=='group') :
+   target===v;
+  btn.classList.toggle('active',activeState);
+ });
+}
+
+document.querySelectorAll('[data-mobile-view]').forEach(btn=>btn.onclick=()=>{
+ const target=btn.dataset.mobileView;
+ document.body.classList.remove('chatopen');
+
+ if(target==='groups'){
+  setFilter('group');
+  nav('chats');
+ }else if(target==='chats'){
+  setFilter('all');
+  nav('chats');
+ }else{
+  nav(target);
+ }
+ syncMobileNavigation(target==='groups'?'chats':target);
+});
+
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>nav(b.dataset.view));
-document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));renderList()});
+document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));renderList();syncMobileNavigation('chats')});
 document.getElementById('search').oninput=e=>{query=e.target.value;if(view==='chats')renderList()};
 document.getElementById('focusSearch').onclick=()=>document.getElementById('search').focus();
 document.getElementById('settingsBtn').onclick=openSettings;

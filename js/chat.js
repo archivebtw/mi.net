@@ -63,7 +63,7 @@ function reactionSummaryHtml(m){
  const mineEmoji=Object.entries(map).find(([,value])=>value.mine)?.[0]||'';
 
  return `<div class="reaction-zone ${chips?'has-reactions':''}" data-reaction-zone="${m.id}">
-  <button class="reaction-trigger ${mineEmoji?'mine':''}" data-reaction-trigger="${m.id}" aria-label="Choose reaction" aria-expanded="false">☺</button>
+  <button class="reaction-trigger ${mineEmoji?'mine':''}" data-reaction-trigger="${m.id}" aria-label="Choose reaction" aria-expanded="false">＋</button>
   <div class="reaction-chips">${chips}</div>
   <div class="reaction-picker" role="menu" aria-label="Message reactions">
    ${MESSAGE_REACTIONS.map(emoji=>`<button class="reaction-option ${mineEmoji===emoji?'selected':''}" data-reaction-pick="${m.id}" data-emoji="${emoji}" role="menuitem" aria-label="React ${emoji}">${emoji}</button>`).join('')}
@@ -106,22 +106,28 @@ function urlMatches(text){
 function fileAttachmentHtml(file){
  if(!file)return '';
  const type=file.type||'';
- const src=file.url||'';
+ const legacySrc=file.url||'';
+ const mediaSourceAttrs=file.key
+  ?`data-mi-media-key="${esc(file.key)}"`
+  :legacySrc?`src="${legacySrc}"`:'';
 
- if(type.startsWith('image/')&&src){
-  return `<figure class="message-media is-image"><img src="${src}" alt="${esc(file.name||'Image attachment')}" loading="lazy"></figure>`;
+ if(type.startsWith('image/')){
+  return `<figure class="message-media is-image ${file.key?'media-loading':''}">
+   <div class="media-skeleton"><span></span></div>
+   <img ${mediaSourceAttrs} alt="${esc(file.name||'Image attachment')}" loading="lazy">
+  </figure>`;
  }
 
- if(type.startsWith('video/')&&src){
-  return `<figure class="message-media is-video">
-   <video controls preload="metadata" src="${src}"></video>
-   <figcaption>${esc(file.name||'Video')}</figcaption>
+ if(type.startsWith('video/')){
+  return `<figure class="message-media is-video ${file.key?'media-loading':''}">
+   <div class="media-skeleton"><span></span></div>
+   <video controls preload="metadata" ${mediaSourceAttrs}></video>
+   <figcaption><span>${esc(file.name||'Video')}</span><small>${formatSize(file.size||0)}</small></figcaption>
   </figure>`;
  }
 
  return `<div class="filecard"><span class="icon">${svg('file')}</span><div class="filemeta"><strong>${esc(file.name)}</strong><small>${esc(file.type||'file')} · ${formatSize(file.size||0)}</small></div></div>`;
 }
-
 function linkifyText(text){
  return esc(String(text||'')).replace(MESSAGE_URL_RE,match=>{
   const href=normalizeExternalUrl(match);
@@ -210,13 +216,15 @@ function renderChat(c){
  <section class="messages" id="messages"><div class="day">${q?`${msgs.length} result${msgs.length===1?'':'s'}`:'Today'}</div>${msgs.length?msgs.map(msg).join(''):`<div class="empty"><p>No matching messages.</p></div>`}</section>
  ${composerHtml(c,'Message '+c.name)}`;
  bindChat(c);
+ miHydrateMediaElements(chat);
 }
 function renderPublic(c){
  chat.innerHTML=`<header class="chathead">${A(c.initials,'square dark')}<div class="chatname"><strong>${esc(c.name)}</strong><span>${esc(c.subtitle)}</span></div><div class="chatactions"><button class="iconbtn" id="chatSearchBtn" title="Search"><span class="icon">${svg('search')}</span></button><button class="iconbtn" id="chatMoreBtn" title="More"><span class="icon">${svg('more')}</span></button></div></header>
  ${chatSearchOpen?`<div class="chatsearch"><input id="chatSearchInput" value="${esc(chatSearchQuery)}" placeholder="Search posts"><button class="iconbtn" id="closeChatSearch">${svg('x')}</button></div>`:''}
- <section class="messages">${(c.posts||[]).filter(p=>!chatSearchQuery||p.x.toLowerCase().includes(chatSearchQuery.toLowerCase())).map(p=>`<article class="publicpost" data-post="${p.id}"><div class="pubhead">${A(c.initials,'square dark')}<strong>${esc(c.name)}</strong><time>${esc(p.t)}</time></div><div class="pubbody">${esc(p.x)}</div><div class="pubfoot"><button class="metric ${p.liked?'active':''}" data-like-post="${p.id}">♡ ${p.l}</button><button class="metric" data-thread="${p.id}">${(p.replies||[]).length||p.r||0} replies</button><button class="metric" data-share="${p.id}">Share</button></div></article>`).join('')||`<div class="empty"><p>No matching posts.</p></div>`}</section>
- ${c.owner?`<footer class="composer"><button class="iconbtn" id="attachBtn"><span class="icon">${svg('paperclip')}</span></button><textarea id="messageInput" placeholder="Publish to ${esc(c.name)}"></textarea><button class="send" id="sendBtn"><span class="icon">${svg('send')}</span></button></footer>`:''}`;
+ <section class="messages">${(c.posts||[]).filter(p=>!chatSearchQuery||(p.x||'').toLowerCase().includes(chatSearchQuery.toLowerCase())).map(p=>`<article class="publicpost" data-post="${p.id}"><div class="pubhead">${A(c.initials,'square dark')}<strong>${esc(c.name)}</strong><time>${esc(p.t)}</time></div><div class="pubbody">${p.x?richMessageTextHtml(p.x):''}${p.file?fileAttachmentHtml(p.file):''}</div><div class="pubfoot"><button class="metric ${p.liked?'active':''}" data-like-post="${p.id}">♡ ${p.l}</button><button class="metric" data-thread="${p.id}">${(p.replies||[]).length||p.r||0} replies</button><button class="metric" data-share="${p.id}">Share</button></div></article>`).join('')||`<div class="empty"><p>No matching posts.</p></div>`}</section>
+ ${c.owner?`${pendingAttachment?`<div class="publish-attachment-preview"><div><strong>${esc(pendingAttachment.name)}</strong><small>${pendingAttachment.type?.startsWith('image/')?'Photo':pendingAttachment.type?.startsWith('video/')?'Video':'File'} · ${formatSize(pendingAttachment.size||0)}</small></div><button class="mini-close" id="cancelPublicAttach">×</button></div>`:''}<footer class="composer ${pendingAttachment?'has-top':''}"><button class="iconbtn" id="attachBtn"><span class="icon">${svg('paperclip')}</span></button><textarea id="messageInput" placeholder="Publish to ${esc(c.name)}"></textarea><button class="send" id="sendBtn"><span class="icon">${svg('send')}</span></button></footer>`:''}`;
  bindPublic(c);
+ miHydrateMediaElements(chat);
 }
 function renderConversation(c){if(c.kind==='public'&&c.mode==='hybrid')renderPublic(c);else renderChat(c)}
 function bindHeaderCommon(c){
@@ -531,9 +539,24 @@ function bindPublic(c){
  chat.querySelectorAll('[data-share]').forEach(b=>b.onclick=async()=>{let url=`https://mi.net/${c.name.replace('/','')}/post/${b.dataset.share}`;try{await navigator.clipboard.writeText(url);toast('Link copied')}catch(e){toast(url)}});
  if(c.owner){
   const send=document.getElementById('sendBtn'),input=document.getElementById('messageInput');
-  send.onclick=()=>{let x=input.value.trim();if(!x)return;c.posts.unshift({id:id(),t:'now',x,r:0,l:0,liked:false,replies:[]});c.preview=x;c.time='now';persist();renderPublic(c);renderList();toast('Published')};
+  send.onclick=()=>{
+   const x=input.value.trim();
+   if(!x&&!pendingAttachment)return;
+   const post={id:id(),t:'now',x,r:0,l:0,liked:false,replies:[]};
+   if(pendingAttachment)post.file={...pendingAttachment};
+   c.posts.unshift(post);
+   c.preview=x||(pendingAttachment?.type?.startsWith('image/')?'Photo':pendingAttachment?.type?.startsWith('video/')?'Video':'Attachment');
+   c.time='now';
+   pendingAttachment=null;
+   persist();
+   renderPublic(c);
+   renderList();
+   toast('Published');
+  };
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send.click()}};
-  document.getElementById('attachBtn').onclick=()=>toast('Post media upload is next on the roadmap');
+  document.getElementById('attachBtn').onclick=()=>document.getElementById('filePicker').click();
+  const cancel=document.getElementById('cancelPublicAttach');
+  if(cancel)cancel.onclick=()=>{pendingAttachment=null;renderPublic(c)};
  }
 }
 function scrollBottom(){let m=document.getElementById('messages');if(m)m.scrollTop=m.scrollHeight}

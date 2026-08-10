@@ -4,7 +4,11 @@ try{state=JSON.parse(localStorage.getItem('minet_state_v2'))||initialState()}cat
 
 function migrateState(){
  state.me=state.me||initialState().me;
- state.settings=Object.assign({dark:false,compact:false},state.settings||{});
+ state.settings=Object.assign({dark:true,compact:false},state.settings||{});
+ if(!state.designVersion||state.designVersion<5){
+  state.settings.dark=true;
+  state.designVersion=5;
+ }
  state.muted=Array.isArray(state.muted)?state.muted:[];
  state.pinnedConversations=Array.isArray(state.pinnedConversations)?state.pinnedConversations:[];
  state.drafts=state.drafts&&typeof state.drafts==='object'?state.drafts:{};
@@ -28,7 +32,8 @@ function persist(){try{localStorage.setItem('minet_state_v2',JSON.stringify(stat
 function applySettings(){
  document.body.classList.toggle('dark',!!state.settings.dark);
  document.body.classList.toggle('compact',!!state.settings.compact);
- document.querySelector('meta[name="theme-color"]').content=state.settings.dark?'#0c0c0c':'#ffffff';
+ document.body.classList.add('reference-ui');
+ document.querySelector('meta[name="theme-color"]').content=state.settings.dark?'#0b0b0e':'#f7f7fb';
 }
 applySettings();
 

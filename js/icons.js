@@ -26,7 +26,10 @@ copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 
 forward:'<path d="m15 7 5 5-5 5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>',
 check:'<path d="m5 12 4 4L19 6"/>',
 check2:'<path d="m1 12 4 4L15 6"/><path d="m9 12 4 4L23 6"/>',
-archive:'<path d="M3 6h18M5 6v14h14V6M9 10h6"/>'
+archive:'<path d="M3 6h18M5 6v14h14V6M9 10h6"/>',
+user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+video:'<rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2v8l-4-2z"/>',
+external:'<path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>'
 
 };
 const svg=n=>`<svg viewBox="0 0 24 24">${I[n]||I.more}</svg>`;

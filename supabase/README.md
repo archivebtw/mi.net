@@ -1,40 +1,45 @@
-# mi.net Auth v2 fix
+# Supabase user search patch
 
-Эта версия полностью убирает `is_username_available()` из критического пути
-регистрации.
+До этого окно **New message** использовало локальный JavaScript-массив demo-контактов.
+Поэтому зарегистрированные Supabase-пользователи не могли появиться в поиске.
 
-## Почему
+Теперь поиск работает по:
 
-Frontend-проверка доступности username — только удобство интерфейса.
-Уникальность и допустимость username должны проверяться атомарно в PostgreSQL.
+`public.profiles`
 
-Теперь регистрацию защищают:
+и ищет:
 
-- `profiles_username_lower_unique`
-- `profiles_username_allowed`
-- `handle_new_user()` trigger
+- username;
+- display name.
+
+Текущий аккаунт исключается из результатов.
 
 ## Установка
 
-1. Замени `index.html`.
-2. Замени `js/auth.js`.
-3. Запусти `supabase/auth_v2_db_fix.sql` в Supabase SQL Editor.
-4. Сделай hard refresh сайта: `Ctrl + Shift + R`.
+1. Замени файлы из этого архива в репозитории.
+2. В Supabase → SQL Editor запусти:
 
-В `index.html` уже добавлен cache-busting:
+`supabase/profiles_search_fix.sql`
 
-```html
-<script src="js/auth.js?v=20260810-2"></script>
-```
+3. В конце SQL появится таблица-диагностика.
 
-Поэтому старый `auth.js` не должен оставаться в кэше.
+У каждого зарегистрированного Auth-пользователя должно быть:
 
-## Проверка
+`profile_status = OK`
 
-Открой DevTools → Sources / Network и найди `auth.js?v=20260810-2`.
+4. Загрузи изменения на GitHub Pages.
+5. Сделай `Ctrl + Shift + R`.
 
-В первой строке файла должно быть:
+В Network должны загружаться:
 
-```js
-// mi.net auth build: 2026-08-10-v2-no-rpc-block
-```
+- `navigation.js?v=20260810-4`
+- `create.js?v=20260810-4`
+- `auth.js?v=20260810-4`
+
+## Важно
+
+Этот patch делает **реальный поиск зарегистрированных аккаунтов** через Supabase.
+
+Сам Direct пока использует текущую локальную механику сообщений mi.net. То есть пользователь
+будет найден и диалог можно открыть, но синхронизация сообщений между двумя браузерами/аккаунтами
+потребует следующего backend-слоя: `conversations`, `conversation_members`, `messages` + Supabase Realtime.

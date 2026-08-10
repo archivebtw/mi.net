@@ -77,11 +77,41 @@ function toggleConversationPin(c){
 }
 
 function ensureDirect(person){
- let c=state.conversations.find(x=>x.kind==='direct'&&x.handle===person.handle);
+ const remoteId=person.id||person.remoteUserId||null;
+
+ let c=state.conversations.find(x=>
+  x.kind==='direct'&&(
+   (remoteId&&x.remoteUserId===remoteId)||
+   (!x.remoteUserId&&x.handle===person.handle)
+  )
+ );
+
  if(!c){
-  c={id:id(),kind:'direct',name:person.name,handle:person.handle,initials:person.initials,preview:'New conversation',time:'now',unread:0,subtitle:person.status,desc:'mi.net contact',messages:[]};
-  state.conversations.unshift(c);persist();
+  c={
+   id:id(),
+   kind:'direct',
+   remoteUserId:remoteId,
+   name:person.name,
+   handle:person.handle,
+   initials:person.initials,
+   preview:'New conversation',
+   time:'now',
+   unread:0,
+   subtitle:person.status||'mi.net user',
+   desc:person.bio||'mi.net user',
+   messages:[]
+  };
+  state.conversations.unshift(c);
+ }else{
+  // Refresh mutable public profile data without changing conversation identity.
+  if(remoteId)c.remoteUserId=remoteId;
+  c.name=person.name||c.name;
+  c.handle=person.handle||c.handle;
+  c.initials=person.initials||c.initials;
+  c.desc=person.bio||c.desc;
  }
+
+ persist();
  openConv(c.id);
 }
 

@@ -226,3 +226,122 @@
   font-size:10px;
   box-shadow:var(--shadow);
 }
+
+
+/* =========================================================
+   Supabase user search in New message
+   ========================================================= */
+#directContacts{
+  min-height:72px;
+}
+
+.direct-profile-result{
+  width:100%;
+  min-height:62px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--panel-2);
+  padding:8px 10px;
+  display:grid;
+  grid-template-columns:40px minmax(0,1fr) 30px;
+  gap:10px;
+  align-items:center;
+  text-align:left;
+  transition:border-color var(--ease),background var(--ease),transform var(--ease);
+}
+
+.direct-profile-result + .direct-profile-result{
+  margin-top:6px;
+}
+
+.direct-profile-result:hover{
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  transform:translateY(-1px);
+}
+
+.direct-profile-result .avatar{
+  width:40px;
+  height:40px;
+  font-size:9px;
+}
+
+.direct-profile-result .copy{
+  min-width:0;
+}
+
+.direct-profile-result .copy strong,
+.direct-profile-result .copy small{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.direct-profile-result .copy strong{
+  font-size:10px;
+}
+
+.direct-profile-result .copy small{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:9px;
+}
+
+.direct-profile-action{
+  width:30px;
+  height:30px;
+  border-radius:9px;
+  display:grid;
+  place-items:center;
+  color:var(--accent-2);
+  background:var(--accent-soft);
+}
+
+.direct-profile-action svg{
+  width:15px;
+  height:15px;
+  stroke:currentColor;
+  fill:none;
+}
+
+.direct-search-state{
+  min-height:72px;
+  border:1px dashed var(--border);
+  border-radius:11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:14px;
+  color:var(--muted);
+  text-align:center;
+}
+
+.direct-search-state strong{
+  font-size:9px;
+  font-weight:650;
+}
+
+.direct-search-state.error{
+  border-color:color-mix(in srgb,var(--danger) 38%,var(--border));
+  color:var(--danger);
+  background:color-mix(in srgb,var(--danger) 5%,transparent);
+}
+
+.direct-search-spinner{
+  width:14px;
+  height:14px;
+  border:2px solid var(--border-strong);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:direct-search-spin .7s linear infinite;
+}
+
+@keyframes direct-search-spin{
+  to{transform:rotate(360deg)}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .direct-search-spinner{animation-duration:1.8s}
+}

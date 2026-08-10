@@ -1,4 +1,4 @@
-// mi.net auth build: 2026-08-10-v2-no-rpc-block
+// mi.net auth build: 2026-08-10-v4-profile-search
 // Supabase authentication and profile synchronization for mi.net.
 const miAuth = {
   client: null,
@@ -18,11 +18,141 @@ function miSupabaseConfigured(){
   );
 }
 
+function miSupabaseConfig(){
+  return window.MINET_SUPABASE_CONFIG||{};
+}
+
+function miNormalizeSupabaseUrl(value){
+  return String(value||'').trim().replace(/\/+$/,'');
+}
+
+function miValidateSupabaseConfigShape(){
+  const config=miSupabaseConfig();
+  const url=miNormalizeSupabaseUrl(config.url);
+  const key=String(config.key||'').trim();
+
+  if(!url||url.includes('YOUR_SUPABASE')){
+    return {ok:false,message:'Supabase Project URL is missing.'};
+  }
+
+  if(!key||key.includes('YOUR_SUPABASE')){
+    return {ok:false,message:'Supabase publishable/anon key is missing.'};
+  }
+
+  let parsed;
+  try{
+    parsed=new URL(url);
+  }catch(e){
+    return {ok:false,message:'Supabase Project URL is not a valid URL.'};
+  }
+
+  if(!/^https?:$/.test(parsed.protocol)){
+    return {ok:false,message:'Supabase Project URL must use https://.'};
+  }
+
+  if(parsed.pathname && parsed.pathname!=='/'){
+    return {
+      ok:false,
+      message:'Use the Supabase Project URL only, without /auth/v1, /rest/v1 or another path.'
+    };
+  }
+
+  if(parsed.hostname===window.location.hostname){
+    return {
+      ok:false,
+      message:'Supabase Project URL points to this website. Use the URL from Supabase Dashboard instead.'
+    };
+  }
+
+  return {ok:true,url,key};
+}
+
+async function miProbeSupabaseEndpoint(){
+  const shape=miValidateSupabaseConfigShape();
+  if(!shape.ok)return shape;
+
+  const endpoint=shape.url+'/auth/v1/settings';
+
+  try{
+    const response=await fetch(endpoint,{
+      method:'GET',
+      headers:{
+        apikey:shape.key,
+        Authorization:'Bearer '+shape.key,
+        Accept:'application/json'
+      },
+      cache:'no-store'
+    });
+
+    const contentType=(response.headers.get('content-type')||'').toLowerCase();
+    const raw=await response.text();
+    const startsAsHtml=/^\s*</.test(raw)||contentType.includes('text/html');
+
+    if(startsAsHtml){
+      return {
+        ok:false,
+        code:'html-response',
+        message:'Supabase URL is incorrect: the Auth endpoint returned an HTML page instead of JSON.',
+        endpoint,
+        status:response.status
+      };
+    }
+
+    let payload=null;
+    try{
+      payload=raw?JSON.parse(raw):null;
+    }catch(e){
+      return {
+        ok:false,
+        code:'invalid-json',
+        message:'Supabase endpoint did not return valid JSON. Check the Project URL and browser key.',
+        endpoint,
+        status:response.status
+      };
+    }
+
+    if(!response.ok){
+      const serverMessage=payload?.msg||payload?.message||payload?.error_description||payload?.error;
+      return {
+        ok:false,
+        code:'http-error',
+        message:serverMessage
+          ?'Supabase rejected the connection: '+serverMessage
+          :'Supabase rejected the connection. Check the publishable/anon key.',
+        endpoint,
+        status:response.status
+      };
+    }
+
+    return {ok:true,endpoint,status:response.status};
+  }catch(error){
+    return {
+      ok:false,
+      code:'network-error',
+      message:'Could not reach the Supabase Auth endpoint. Check the Project URL, network and CORS configuration.',
+      details:error?.message||String(error)
+    };
+  }
+}
+
+function miFormatUnexpectedAuthError(error){
+  const message=String(error?.message||error||'');
+
+  if(/Unexpected token ['"]?<['"]?|not valid JSON|JSON/i.test(message)){
+    return 'Supabase returned HTML instead of JSON. Check js/supabase-config.js: Project URL must be the Supabase project URL, not your website URL.';
+  }
+
+  return miFriendlyAuthError(error);
+}
+
 function miCreateSupabaseClient(){
   if(!miSupabaseConfigured() || !window.supabase?.createClient)return null;
 
-  const config=window.MINET_SUPABASE_CONFIG;
-  return window.supabase.createClient(config.url,config.key,{
+  const config=miSupabaseConfig();
+  return window.supabase.createClient(
+    miNormalizeSupabaseUrl(config.url),
+    String(config.key||'').trim(),
+    {
     auth:{
       persistSession:true,
       autoRefreshToken:true,
@@ -192,6 +322,86 @@ async function miCheckUsernameAvailability(username){
   };
 }
 
+function miSanitizeProfileSearch(value){
+  return String(value||'')
+    .trim()
+    .replace(/^@+/,'')
+    .replace(/[%_*(),]/g,'')
+    .slice(0,40);
+}
+
+async function miSearchProfiles(searchTerm='',limit=12){
+  if(!miAuth.client||!miAuth.user){
+    return {ok:false,profiles:[],message:'You must be signed in.'};
+  }
+
+  const term=miSanitizeProfileSearch(searchTerm);
+  const columns='id, username, display_name, bio, avatar_url, updated_at';
+
+  try{
+    if(!term){
+      const {data,error}=await miAuth.client
+        .from('profiles')
+        .select(columns)
+        .neq('id',miAuth.user.id)
+        .order('updated_at',{ascending:false})
+        .limit(limit);
+
+      if(error)throw error;
+      return {ok:true,profiles:data||[]};
+    }
+
+    // Use typed ilike filters instead of injecting a raw PostgREST .or() string.
+    // Username prefix results are ranked first; display-name matches follow.
+    const [usernameResult,nameResult]=await Promise.all([
+      miAuth.client
+        .from('profiles')
+        .select(columns)
+        .neq('id',miAuth.user.id)
+        .ilike('username',term+'%')
+        .limit(limit),
+      miAuth.client
+        .from('profiles')
+        .select(columns)
+        .neq('id',miAuth.user.id)
+        .ilike('display_name','%'+term+'%')
+        .limit(limit)
+    ]);
+
+    if(usernameResult.error)throw usernameResult.error;
+    if(nameResult.error)throw nameResult.error;
+
+    const merged=[];
+    const seen=new Set();
+
+    for(const profile of [...(usernameResult.data||[]),...(nameResult.data||[])]){
+      if(seen.has(profile.id))continue;
+      seen.add(profile.id);
+      merged.push(profile);
+      if(merged.length>=limit)break;
+    }
+
+    return {ok:true,profiles:merged};
+  }catch(error){
+    console.error('mi.net profile search failed',error);
+
+    const message=String(error?.message||'');
+    if(/row-level security|permission denied/i.test(message)){
+      return {
+        ok:false,
+        profiles:[],
+        message:'Profile search is blocked by Supabase RLS. Run profiles_search_fix.sql.'
+      };
+    }
+
+    return {
+      ok:false,
+      profiles:[],
+      message:'Could not search mi.net users.'
+    };
+  }
+}
+
 async function miSaveRemoteProfile({displayName,username,bio}){
   if(!miAuth.client||!miAuth.user)return {ok:false,message:'You are not signed in.'};
 
@@ -212,7 +422,7 @@ async function miSaveRemoteProfile({displayName,username,bio}){
     .select('id, username, display_name, bio, avatar_url, created_at, updated_at')
     .single();
 
-  if(error)return {ok:false,message:miFriendlyAuthError(error)};
+  if(error)return {ok:false,message:miFormatUnexpectedAuthError(error)};
 
   const {error:metadataError}=await miAuth.client.auth.updateUser({
     data:{
@@ -232,7 +442,7 @@ async function miSignOut(){
 
   const {error}=await miAuth.client.auth.signOut();
   if(error){
-    toast(miFriendlyAuthError(error));
+    toast(miFormatUnexpectedAuthError(error));
     return;
   }
 
@@ -260,7 +470,7 @@ async function miHandleSignIn(event){
   miSetAuthBusy(form,false);
 
   if(error){
-    miAuthMessage(miFriendlyAuthError(error),'error');
+    miAuthMessage(miFormatUnexpectedAuthError(error),'error');
     return;
   }
 
@@ -316,7 +526,7 @@ async function miHandleSignUp(event){
   miSetAuthBusy(form,false);
 
   if(error){
-    miAuthMessage(miFriendlyAuthError(error),'error');
+    miAuthMessage(miFormatUnexpectedAuthError(error),'error');
     return;
   }
 
@@ -344,7 +554,7 @@ async function miHandleForgot(event){
   miSetAuthBusy(form,false);
 
   if(error){
-    miAuthMessage(miFriendlyAuthError(error),'error');
+    miAuthMessage(miFormatUnexpectedAuthError(error),'error');
     return;
   }
 
@@ -369,7 +579,7 @@ async function miHandleRecovery(event){
   miSetAuthBusy(form,false);
 
   if(error){
-    miAuthMessage(miFriendlyAuthError(error),'error');
+    miAuthMessage(miFormatUnexpectedAuthError(error),'error');
     return;
   }
 
@@ -429,6 +639,27 @@ async function miInitAuth(){
     return;
   }
 
+  const configCheck=miValidateSupabaseConfigShape();
+  if(!configCheck.ok){
+    warning.hidden=false;
+    miShowAuthGate('signin');
+    miAuthMessage(configCheck.message,'error');
+    return;
+  }
+
+  warning.hidden=true;
+  miShowAuthGate('signin');
+  miAuthMessage('Connecting to Supabase…');
+
+  const endpointCheck=await miProbeSupabaseEndpoint();
+  if(!endpointCheck.ok){
+    warning.hidden=false;
+    miAuthMessage(endpointCheck.message,'error');
+    console.error('mi.net Supabase endpoint diagnostic',endpointCheck);
+    return;
+  }
+
+  miAuthMessage('');
   miAuth.client=miCreateSupabaseClient();
 
   if(!miAuth.client){
@@ -466,7 +697,7 @@ async function miInitAuth(){
 
   if(error){
     miShowAuthGate('signin');
-    miAuthMessage(miFriendlyAuthError(error),'error');
+    miAuthMessage(miFormatUnexpectedAuthError(error),'error');
     return;
   }
 
@@ -480,5 +711,6 @@ async function miInitAuth(){
 window.miSignOut=miSignOut;
 window.miSaveRemoteProfile=miSaveRemoteProfile;
 window.miAuthUserEmail=miAuthUserEmail;
+window.miSearchProfiles=miSearchProfiles;
 
 miInitAuth();

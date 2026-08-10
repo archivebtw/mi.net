@@ -1,11 +1,108 @@
 // Create Direct, Group, Public, Profile and Settings
-function renderDirectContacts(){
- const q=document.getElementById('directSearch').value.trim().toLowerCase();const items=people.filter(p=>!q||`${p.name} ${p.handle}`.toLowerCase().includes(q));
- document.getElementById('directContacts').innerHTML=items.map(p=>`<button data-direct-person="${p.handle}">${A(p.initials)}<div class="copy"><strong>${esc(p.name)}</strong><small>${esc(p.handle)}</small></div><span class="icon">${svg('message')}</span></button>`).join('');
- document.querySelectorAll('[data-direct-person]').forEach(b=>b.onclick=()=>{closeModal('directModal');ensureDirect(people.find(p=>p.handle===b.dataset.directPerson))});
+let directSearchTimer=null;
+let directSearchRequest=0;
+let directProfileResults=new Map();
+
+function directProfileToPerson(profile){
+ const name=(profile.display_name||'').trim()||('@'+profile.username);
+ return {
+  id:profile.id,
+  remoteUserId:profile.id,
+  name,
+  handle:'@'+profile.username,
+  initials:initials(name),
+  status:'mi.net user',
+  bio:profile.bio||''
+ };
 }
-function openDirectModal(){document.getElementById('directSearch').value='';renderDirectContacts();openModal('directModal');setTimeout(()=>document.getElementById('directSearch').focus(),0)}
-document.getElementById('directSearch').oninput=renderDirectContacts;
+
+function renderDirectSearchStatus(kind,text){
+ const target=document.getElementById('directContacts');
+ if(!target)return;
+
+ target.innerHTML=`<div class="direct-search-state ${kind}">
+  ${kind==='loading'?'<span class="direct-search-spinner"></span>':''}
+  <strong>${esc(text)}</strong>
+ </div>`;
+}
+
+async function renderDirectContacts(){
+ const input=document.getElementById('directSearch');
+ const target=document.getElementById('directContacts');
+ if(!input||!target)return;
+
+ const query=input.value.trim();
+ const requestId=++directSearchRequest;
+
+ renderDirectSearchStatus('loading',query?'Searching mi.net…':'Loading people…');
+
+ if(typeof miSearchProfiles!=='function'){
+  renderDirectSearchStatus('error','Supabase profile search is not available.');
+  return;
+ }
+
+ const result=await miSearchProfiles(query,14);
+
+ // Ignore an older network response if the user has already typed again.
+ if(requestId!==directSearchRequest)return;
+
+ if(!result.ok){
+  directProfileResults.clear();
+  renderDirectSearchStatus('error',result.message||'Could not search users.');
+  return;
+ }
+
+ directProfileResults=new Map((result.profiles||[]).map(profile=>[profile.id,profile]));
+
+ if(!result.profiles?.length){
+  renderDirectSearchStatus(
+   'empty',
+   query?`No mi.net users found for “${query}”.`:'No other profiles found yet.'
+  );
+  return;
+ }
+
+ target.innerHTML=result.profiles.map(profile=>{
+  const person=directProfileToPerson(profile);
+  return `<button class="direct-profile-result" data-direct-profile="${profile.id}">
+   ${A(person.initials)}
+   <div class="copy">
+    <strong>${esc(person.name)}</strong>
+    <small>${esc(person.handle)}${person.bio?' · '+esc(person.bio):''}</small>
+   </div>
+   <span class="direct-profile-action">${svg('message')}</span>
+  </button>`;
+ }).join('');
+
+ target.querySelectorAll('[data-direct-profile]').forEach(button=>{
+  button.onclick=()=>{
+   const profile=directProfileResults.get(button.dataset.directProfile);
+   if(!profile)return;
+   closeModal('directModal');
+   ensureDirect(directProfileToPerson(profile));
+  };
+ });
+}
+
+function scheduleDirectSearch(){
+ clearTimeout(directSearchTimer);
+ directSearchTimer=setTimeout(renderDirectContacts,180);
+}
+
+function openDirectModal(){
+ const input=document.getElementById('directSearch');
+ input.value='';
+ input.placeholder='Search @username or display name';
+ input.setAttribute('autocomplete','off');
+ input.setAttribute('autocapitalize','none');
+ input.setAttribute('spellcheck','false');
+
+ openModal('directModal');
+ renderDirectContacts();
+ setTimeout(()=>input.focus(),0);
+}
+
+document.getElementById('directSearch').oninput=scheduleDirectSearch;
 
 function openGroupModal(){
  document.getElementById('groupName').value='';document.getElementById('groupMembers').innerHTML=people.map(p=>`<label class="checkrow"><input type="checkbox" value="${p.handle}"><span><strong>${esc(p.name)}</strong><small>${esc(p.handle)}</small></span></label>`).join('');openModal('groupModal')

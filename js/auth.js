@@ -1,11 +1,15 @@
-// mi.net auth build: 2026-08-10-v5-realtime-direct
+// mi.net auth build: 2026-08-10-v7-phone-verification
 // Supabase authentication and profile synchronization for mi.net.
 const miAuth = {
   client: null,
   session: null,
   user: null,
   profile: null,
-  recovery: false
+  recovery: false,
+  phoneSignup: null,
+  phoneSignupCompleting: false,
+  phoneResendTimer: null,
+  phoneResendSeconds: 0
 };
 
 function miSupabaseConfigured(){
@@ -161,6 +165,146 @@ function miCreateSupabaseClient(){
   });
 }
 
+function miNormalizePhone(value){
+  return String(value||'')
+    .trim()
+    .replace(/[()\s-]+/g,'');
+}
+
+function miCheckPhone(phone){
+  const normalized=miNormalizePhone(phone);
+
+  if(!normalized){
+    return {ok:false,message:'Phone number is required.'};
+  }
+
+  if(!/^\+[1-9]\d{7,14}$/.test(normalized)){
+    return {
+      ok:false,
+      message:'Use international format, for example +15551234567.'
+    };
+  }
+
+  return {ok:true,value:normalized};
+}
+
+function miSetPhoneValidation(input,result,errorElement){
+  if(!input)return result;
+
+  input.classList.toggle('auth-invalid',!result.ok);
+
+  if(errorElement){
+    errorElement.textContent=result.ok?'':result.message;
+    errorElement.hidden=result.ok;
+  }
+
+  return result;
+}
+
+function miIsEmailIdentifier(value){
+  return String(value||'').includes('@');
+}
+
+function miSavePendingPhoneSignup(payload){
+  miAuth.phoneSignup=payload;
+
+  try{
+    sessionStorage.setItem('minet_phone_signup',JSON.stringify(payload));
+  }catch(e){}
+}
+
+function miLoadPendingPhoneSignup(){
+  if(miAuth.phoneSignup)return miAuth.phoneSignup;
+
+  try{
+    const raw=sessionStorage.getItem('minet_phone_signup');
+    if(raw)miAuth.phoneSignup=JSON.parse(raw);
+  }catch(e){}
+
+  return miAuth.phoneSignup;
+}
+
+function miClearPendingPhoneSignup(){
+  miAuth.phoneSignup=null;
+
+  try{
+    sessionStorage.removeItem('minet_phone_signup');
+  }catch(e){}
+}
+
+function miShowPhoneVerification(){
+  const pending=miLoadPendingPhoneSignup();
+  if(!pending){
+    miShowAuthView('signup');
+    return;
+  }
+
+  miShowAuthView('phone');
+  const target=document.getElementById('phoneVerifyTarget');
+  const code=document.getElementById('phoneOtpCode');
+
+  if(target)target.textContent=pending.phone;
+  if(code){
+    code.value='';
+    setTimeout(()=>code.focus(),0);
+  }
+
+  miStartPhoneResendCooldown();
+}
+
+function miStartPhoneResendCooldown(seconds=60){
+  if(miAuth.phoneResendTimer){
+    clearInterval(miAuth.phoneResendTimer);
+  }
+
+  miAuth.phoneResendSeconds=seconds;
+
+  const button=document.getElementById('resendPhoneOtp');
+  const status=document.getElementById('phoneResendStatus');
+
+  const render=()=>{
+    if(button)button.disabled=miAuth.phoneResendSeconds>0;
+
+    if(status){
+      status.textContent=miAuth.phoneResendSeconds>0
+        ?`You can request another code in ${miAuth.phoneResendSeconds}s.`
+        :'Didn’t receive the SMS?';
+    }
+  };
+
+  render();
+
+  miAuth.phoneResendTimer=setInterval(()=>{
+    miAuth.phoneResendSeconds=Math.max(0,miAuth.phoneResendSeconds-1);
+    render();
+
+    if(miAuth.phoneResendSeconds<=0){
+      clearInterval(miAuth.phoneResendTimer);
+      miAuth.phoneResendTimer=null;
+    }
+  },1000);
+}
+
+async function miAttachPendingEmail(email){
+  const normalized=String(email||'').trim();
+  if(!normalized)return {ok:true};
+
+  const currentEmail=miAuth.user?.email||'';
+  if(currentEmail.toLowerCase()===normalized.toLowerCase())return {ok:true};
+
+  const {error}=await miAuth.client.auth.updateUser({email:normalized});
+
+  if(error){
+    console.warn('mi.net email attach failed',error);
+    return {ok:false,message:miFormatUnexpectedAuthError(error)};
+  }
+
+  return {
+    ok:true,
+    confirmationRequired:true
+  };
+}
+
 function miAuthUserEmail(){
   return miAuth.user?.email||'';
 }
@@ -186,6 +330,7 @@ function miShowAuthView(view){
   const forms={
     signin:document.getElementById('signInForm'),
     signup:document.getElementById('signUpForm'),
+    phone:document.getElementById('phoneVerifyForm'),
     forgot:document.getElementById('forgotForm'),
     recovery:document.getElementById('recoveryForm')
   };
@@ -468,13 +613,29 @@ async function miHandleSignIn(event){
   if(!miAuth.client)return;
 
   const form=event.currentTarget;
-  const email=document.getElementById('signInEmail').value.trim();
+  const identifier=document.getElementById('signInEmail').value.trim();
   const password=document.getElementById('signInPassword').value;
 
   miSetAuthBusy(form,true);
   miAuthMessage('');
 
-  const {data,error}=await miAuth.client.auth.signInWithPassword({email,password});
+  let credentials;
+
+  if(miIsEmailIdentifier(identifier)){
+    credentials={email:identifier,password};
+  }else{
+    const phoneResult=miCheckPhone(identifier);
+
+    if(!phoneResult.ok){
+      miSetAuthBusy(form,false);
+      miAuthMessage('Enter a valid email or phone number in international format.','error');
+      return;
+    }
+
+    credentials={phone:phoneResult.value,password};
+  }
+
+  const {data,error}=await miAuth.client.auth.signInWithPassword(credentials);
 
   miSetAuthBusy(form,false);
 
@@ -493,41 +654,50 @@ async function miHandleSignUp(event){
   const form=event.currentTarget;
   const displayName=document.getElementById('signUpName').value.trim();
   const usernameInput=document.getElementById('signUpUsername');
+  const phoneInput=document.getElementById('signUpPhone');
   const email=document.getElementById('signUpEmail').value.trim();
   const password=document.getElementById('signUpPassword').value;
-  const errorElement=document.getElementById('signUpUsernameError');
+  const usernameError=document.getElementById('signUpUsernameError');
+  const phoneError=document.getElementById('signUpPhoneError');
 
   const usernameResult=miCheckUsername(usernameInput.value);
-  miSetUsernameValidation(usernameInput,usernameResult,errorElement);
+  miSetUsernameValidation(usernameInput,usernameResult,usernameError);
 
-  if(!usernameResult.ok)return;
+  const phoneResult=miCheckPhone(phoneInput.value);
+  miSetPhoneValidation(phoneInput,phoneResult,phoneError);
+
+  if(!usernameResult.ok||!phoneResult.ok)return;
+
   if(!displayName){
     miAuthMessage('Display name is required.','error');
     return;
   }
+
+  if(!email||!miIsEmailIdentifier(email)){
+    miAuthMessage('Enter a valid email address.','error');
+    return;
+  }
+
   if(password.length<8){
     miAuthMessage('Password must be at least 8 characters.','error');
     return;
   }
 
   miSetAuthBusy(form,true);
+  miAuthMessage('Sending verification code…');
 
-  // Registration no longer depends on the username availability RPC.
-  // PostgreSQL is authoritative: profiles_username_lower_unique,
-  // profiles_username_allowed and handle_new_user validate atomically.
   const username=usernameResult.value.replace(/^@/,'');
-  usernameInput.classList.remove('auth-invalid');
-  errorElement.hidden=true;
-  miAuthMessage('Creating account…');
+  const phone=phoneResult.value;
 
   const {data,error}=await miAuth.client.auth.signUp({
-    email,
+    phone,
     password,
     options:{
-      emailRedirectTo:miRedirectUrl(),
+      channel:'sms',
       data:{
         username,
-        display_name:displayName
+        display_name:displayName,
+        pending_email:email
       }
     }
   });
@@ -539,15 +709,129 @@ async function miHandleSignUp(event){
     return;
   }
 
+  // For the anti-spam flow we intentionally require an actual SMS challenge.
+  // If Supabase immediately returned a session, Phone Confirmation is disabled.
   if(data.session){
-    await miEstablishSession(data.session);
+    await miAuth.client.auth.signOut();
+    miAuthMessage(
+      'Phone confirmation is disabled in Supabase. Enable Phone Auth confirmation/SMS before allowing registrations.',
+      'error'
+    );
+    return;
+  }
+
+  miSavePendingPhoneSignup({
+    phone,
+    email,
+    username,
+    displayName,
+    createdAt:Date.now()
+  });
+
+  miAuthMessage('');
+  miShowPhoneVerification();
+}
+
+async function miHandlePhoneVerify(event){
+  event.preventDefault();
+  if(!miAuth.client)return;
+
+  const pending=miLoadPendingPhoneSignup();
+
+  if(!pending){
+    miShowAuthView('signup');
+    miAuthMessage('Registration session expired. Start again.','error');
+    return;
+  }
+
+  const form=event.currentTarget;
+  const codeInput=document.getElementById('phoneOtpCode');
+  const codeError=document.getElementById('phoneOtpError');
+  const token=String(codeInput.value||'').replace(/\D/g,'').slice(0,6);
+
+  if(!/^\d{6}$/.test(token)){
+    codeInput.classList.add('auth-invalid');
+    codeError.textContent='Enter the 6-digit SMS code.';
+    codeError.hidden=false;
+    return;
+  }
+
+  codeInput.classList.remove('auth-invalid');
+  codeError.hidden=true;
+  miSetAuthBusy(form,true);
+  miAuthMessage('Verifying phone…');
+
+  miAuth.phoneSignupCompleting=true;
+
+  const {data,error}=await miAuth.client.auth.verifyOtp({
+    phone:pending.phone,
+    token,
+    type:'sms'
+  });
+
+  if(error){
+    miAuth.phoneSignupCompleting=false;
+    miSetAuthBusy(form,false);
+    miAuthMessage(miFormatUnexpectedAuthError(error),'error');
+    return;
+  }
+
+  if(!data.session||!data.user){
+    miAuth.phoneSignupCompleting=false;
+    miSetAuthBusy(form,false);
+    miAuthMessage('Phone was verified, but Supabase did not return a session.','error');
+    return;
+  }
+
+  miAuth.session=data.session;
+  miAuth.user=data.user;
+
+  const emailResult=await miAttachPendingEmail(pending.email);
+
+  miAuth.phoneSignupCompleting=false;
+  miSetAuthBusy(form,false);
+  miClearPendingPhoneSignup();
+
+  await miEstablishSession(data.session);
+
+  if(emailResult.ok&&emailResult.confirmationRequired){
+    toast('Phone verified. Check your email to confirm the email address.');
+  }else if(!emailResult.ok){
+    toast('Phone verified. Email could not be attached yet.');
   }else{
-    form.reset();
-    miShowAuthView('signin');
-    document.getElementById('signInEmail').value=email;
-    miAuthMessage('Account created. Check your email and confirm your address, then sign in.','success');
+    toast('Phone verified. Welcome to mi.net.');
   }
 }
+
+async function miResendPhoneOtp(){
+  if(!miAuth.client||miAuth.phoneResendSeconds>0)return;
+
+  const pending=miLoadPendingPhoneSignup();
+  if(!pending){
+    miShowAuthView('signup');
+    miAuthMessage('Registration session expired. Start again.','error');
+    return;
+  }
+
+  const button=document.getElementById('resendPhoneOtp');
+  button.disabled=true;
+  miAuthMessage('Sending another code…');
+
+  const {error}=await miAuth.client.auth.resend({
+    type:'sms',
+    phone:pending.phone
+  });
+
+  if(error){
+    miAuthMessage(miFormatUnexpectedAuthError(error),'error');
+    button.disabled=false;
+    return;
+  }
+
+  miAuthMessage('A new SMS code was sent.','success');
+  miStartPhoneResendCooldown();
+}
+
 
 async function miHandleForgot(event){
   event.preventDefault();
@@ -616,8 +900,8 @@ function miBindAuthUI(){
   });
 
   document.getElementById('forgotPasswordBtn').addEventListener('click',()=>{
-    const email=document.getElementById('signInEmail').value.trim();
-    document.getElementById('forgotEmail').value=email;
+    const identifier=document.getElementById('signInEmail').value.trim();
+    document.getElementById('forgotEmail').value=miIsEmailIdentifier(identifier)?identifier:'';
     miShowAuthView('forgot');
   });
 
@@ -628,8 +912,29 @@ function miBindAuthUI(){
     miSetUsernameValidation(signupUsername,result,document.getElementById('signUpUsernameError'));
   });
 
+  const signupPhone=document.getElementById('signUpPhone');
+
+  signupPhone.addEventListener('input',()=>{
+    const result=miCheckPhone(signupPhone.value);
+    miSetPhoneValidation(signupPhone,result,document.getElementById('signUpPhoneError'));
+  });
+
+  document.getElementById('phoneOtpCode').addEventListener('input',event=>{
+    event.currentTarget.value=event.currentTarget.value.replace(/\D/g,'').slice(0,6);
+    event.currentTarget.classList.remove('auth-invalid');
+    document.getElementById('phoneOtpError').hidden=true;
+  });
+
+  document.getElementById('cancelPhoneVerify').addEventListener('click',()=>{
+    miShowAuthView('signup');
+    miAuthMessage('You can edit your registration details and request a new code.');
+  });
+
+  document.getElementById('resendPhoneOtp').addEventListener('click',miResendPhoneOtp);
+
   document.getElementById('signInForm').addEventListener('submit',miHandleSignIn);
   document.getElementById('signUpForm').addEventListener('submit',miHandleSignUp);
+  document.getElementById('phoneVerifyForm').addEventListener('submit',miHandlePhoneVerify);
   document.getElementById('forgotForm').addEventListener('submit',miHandleForgot);
   document.getElementById('recoveryForm').addEventListener('submit',miHandleRecovery);
 }
@@ -697,6 +1002,7 @@ async function miInitAuth(){
       }
 
       if(event==='SIGNED_IN'&&session&&!miAuth.recovery){
+        if(miAuth.phoneSignupCompleting)return;
         await miEstablishSession(session);
       }
     },0);
@@ -712,6 +1018,9 @@ async function miInitAuth(){
 
   if(data.session){
     await miEstablishSession(data.session);
+  }else if(miLoadPendingPhoneSignup()){
+    miShowAuthGate('phone');
+    miShowPhoneVerification();
   }else{
     miShowAuthGate('signin');
   }

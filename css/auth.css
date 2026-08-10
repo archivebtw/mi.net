@@ -396,3 +396,68 @@ body.auth-recovery .auth-gate {
     padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
   }
 }
+
+
+/* =========================================================
+   Required phone verification
+   ========================================================= */
+.auth-field-hint {
+  display:block;
+  margin-top:-1px;
+  color:#666671;
+  font-size:8px;
+  line-height:1.45;
+}
+
+.auth-otp-input {
+  height:58px !important;
+  text-align:center;
+  font-size:22px !important;
+  font-weight:820;
+  letter-spacing:.32em;
+  font-variant-numeric:tabular-nums;
+}
+
+.auth-heading strong {
+  color:#c6b5ff;
+  font-weight:760;
+}
+
+.auth-resend-row {
+  min-height:40px;
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:#666671;
+  font-size:8px;
+}
+
+.auth-inline-link {
+  width:auto;
+  margin:0;
+  padding:6px 0;
+  white-space:nowrap;
+}
+
+.auth-inline-link:disabled {
+  color:#4d4d57;
+  cursor:not-allowed;
+}
+
+#phoneVerifyForm .auth-back {
+  cursor:pointer;
+}
+
+@media(max-width:480px){
+  .auth-resend-row{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:4px;
+  }
+
+  .auth-otp-input{
+    letter-spacing:.24em;
+  }
+}

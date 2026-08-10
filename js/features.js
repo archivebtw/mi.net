@@ -13,9 +13,22 @@ function openLibrary(c,type){
  }else{
   const msgs=allMessages(c);let items=[];
   if(type==='files')items=msgs.filter(m=>m.file);
-  if(type==='media')items=msgs.filter(m=>m.file&&m.file.type?.startsWith('image/'));
+  if(type==='media')items=msgs.filter(m=>m.file&&(m.file.type?.startsWith('image/')||m.file.type?.startsWith('video/')));
   if(type==='links')items=msgs.filter(m=>/https?:\/\/|www\./i.test(m.x||''));
-  content=items.map(m=>`<div class="libraryitem"><span class="icon">${svg(type==='links'?'link':type==='media'?'image':'file')}</span><div><strong>${esc(type==='links'?(m.x||'Link'):(m.file?.name||'File'))}</strong><small>${esc(m.a||'')}</small></div></div>`).join('')||`<p style="font-size:10px;color:var(--muted)">Nothing here yet.</p>`;
+  content=items.map(m=>{
+   if(type==='links'){
+    const href=((m.x||'').match(/(?:https?:\/\/|www\.)[^\s<]+/i)||[''])[0];
+    const url=href?(/^https?:\/\//i.test(href)?href:'https://'+href):'#';
+    return `<a class="libraryitem" href="${url}" target="_blank" rel="noopener noreferrer"><span class="icon">${svg('link')}</span><div><strong>${esc(href||m.x||'Link')}</strong><small>${esc(m.a||'')}</small></div></a>`;
+   }
+   if(type==='media'&&m.file?.type?.startsWith('image/')){
+    return `<div class="libraryitem"><span class="icon">${svg('image')}</span><div><strong>${esc(m.file?.name||'Image')}</strong><small>${esc(m.a||'')} · image</small></div></div>`;
+   }
+   if(type==='media'&&m.file?.type?.startsWith('video/')){
+    return `<div class="libraryitem"><span class="icon">${svg('video')}</span><div><strong>${esc(m.file?.name||'Video')}</strong><small>${esc(m.a||'')} · video</small></div></div>`;
+   }
+   return `<div class="libraryitem"><span class="icon">${svg(type==='media'?'image':'file')}</span><div><strong>${esc(m.file?.name||'File')}</strong><small>${esc(m.a||'')}</small></div></div>`;
+  }).join('')||`<p style="font-size:10px;color:var(--muted)">Nothing here yet.</p>`;
  }
  document.getElementById('libraryBody').innerHTML=content;openModal('libraryModal');
 }

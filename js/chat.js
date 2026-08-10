@@ -25,7 +25,7 @@ function countLibrary(c,type){
  if(type==='members')return c.members?.length||c.subtitle||'—';
  const msgs=allMessages(c);
  if(type==='files')return msgs.filter(m=>m.file).length;
- if(type==='media')return msgs.filter(m=>m.file&&m.file.type?.startsWith('image/')).length;
+ if(type==='media')return msgs.filter(m=>m.file&&(m.file.type?.startsWith('image/')||m.file.type?.startsWith('video/'))).length;
  if(type==='links')return msgs.filter(m=>/https?:\/\/|www\./i.test(m.x||'')).length;
  return 0;
 }
@@ -90,6 +90,86 @@ function pinnedBannerHtml(c){
  </button>`;
 }
 
+
+const MESSAGE_URL_RE=/((?:https?:\/\/|www\.)[^\s<]+)/ig;
+
+function normalizeExternalUrl(url){
+ const raw=String(url||'').trim();
+ if(!raw)return '';
+ return /^https?:\/\//i.test(raw)?raw:'https://'+raw;
+}
+
+function urlMatches(text){
+ return String(text||'').match(MESSAGE_URL_RE)||[];
+}
+
+function fileAttachmentHtml(file){
+ if(!file)return '';
+ const type=file.type||'';
+ const src=file.url||'';
+
+ if(type.startsWith('image/')&&src){
+  return `<figure class="message-media is-image"><img src="${src}" alt="${esc(file.name||'Image attachment')}" loading="lazy"></figure>`;
+ }
+
+ if(type.startsWith('video/')&&src){
+  return `<figure class="message-media is-video">
+   <video controls preload="metadata" src="${src}"></video>
+   <figcaption>${esc(file.name||'Video')}</figcaption>
+  </figure>`;
+ }
+
+ return `<div class="filecard"><span class="icon">${svg('file')}</span><div class="filemeta"><strong>${esc(file.name)}</strong><small>${esc(file.type||'file')} · ${formatSize(file.size||0)}</small></div></div>`;
+}
+
+function linkifyText(text){
+ return esc(String(text||'')).replace(MESSAGE_URL_RE,match=>{
+  const href=normalizeExternalUrl(match);
+  return `<a class="message-link" href="${href}" target="_blank" rel="noopener noreferrer">${esc(match)}</a>`;
+ });
+}
+
+function urlPreviewHtml(url){
+ try{
+  const href=normalizeExternalUrl(url);
+  const parsed=new URL(href);
+  const host=parsed.hostname.replace(/^www\./i,'');
+  const path=(parsed.pathname&&parsed.pathname!=='/'?parsed.pathname:'').slice(0,44);
+  const hostLabel=host.replace(/\.[^.]+$/,'');
+  const title=hostLabel.split(/[.-]/).filter(Boolean).map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(' ')||host;
+  const description=(path?path.replace(/[-_/]+/g,' ')+' · ':'')+host;
+  const favicon=`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+
+  return `<a class="site-link-preview" href="${href}" target="_blank" rel="noopener noreferrer">
+   <span class="site-link-preview__chrome">
+    <span class="site-link-preview__dots"><i></i><i></i><i></i></span>
+    <span class="site-link-preview__address">${esc(host)}</span>
+    <span class="site-link-preview__action">Open</span>
+   </span>
+   <span class="site-link-preview__body">
+    <span class="site-link-preview__thumb">
+     <img src="${favicon}" alt="" loading="lazy" onerror="this.style.display='none';this.parentNode.querySelector('b').style.display='grid'">
+     <b style="display:none">${esc(host.slice(0,1).toUpperCase())}</b>
+    </span>
+    <span class="site-link-preview__copy">
+     <strong>${esc(title)}</strong>
+     <small>${esc(description)}</small>
+     <span class="site-link-preview__cta">${esc(host)}</span>
+    </span>
+   </span>
+  </a>`;
+ }catch(e){
+  return '';
+ }
+}
+
+function richMessageTextHtml(text){
+ const raw=String(text||'').trim();
+ if(!raw)return '';
+ const firstUrl=urlMatches(raw)[0];
+ return `<div class="message-richtext">${linkifyText(raw)}</div>${firstUrl?urlPreviewHtml(firstUrl):''}`;
+}
+
 function msg(m){
  const hit=chatSearchQuery&&`${m.a} ${m.x||''} ${m.file?.name||''}`.toLowerCase().includes(chatSearchQuery.toLowerCase());
  return `<article class="msg ${m.own?'own':''} ${hit?'search-hit':''}" data-msg="${m.id}">
@@ -99,8 +179,8 @@ function msg(m){
   ${m.reply?`<div class="replyquote"><strong>${esc(m.reply.a)}</strong><br>${esc(m.reply.x).slice(0,100)}</div>`:''}
   <div class="bubble" data-message-bubble="${m.id}">
    ${m.forwardedFrom?`<div class="forwarded-label">${svg('forward')} Forwarded from ${esc(m.forwardedFrom)}</div>`:''}
-   ${m.x?`<span class="message-text">${esc(m.x)}</span>`:''}
-   ${m.file?`<div class="filecard"><span class="icon">${svg(m.file.type?.startsWith('image/')?'image':'file')}</span><div class="filemeta"><strong>${esc(m.file.name)}</strong><small>${esc(m.file.type||'file')} · ${formatSize(m.file.size||0)}</small></div></div>`:''}
+   ${m.x?richMessageTextHtml(m.x):''}
+   ${m.file?fileAttachmentHtml(m.file):''}
   </div>
   <div class="message-tools">
    <button class="message-tool" data-quick-reply="${m.id}" title="Reply">${svg('forward')}</button>
@@ -180,7 +260,7 @@ function bindChat(c){
 
   c.messages=c.messages||[];
   c.messages.push(m);
-  c.preview=x||('Attached '+pendingAttachment.name);
+  c.preview=x||(pendingAttachment?.type?.startsWith('image/')?'Photo':pendingAttachment?.type?.startsWith('video/')?'Video':('Attached '+pendingAttachment.name));
   c.time='now';
   replyTarget=null;
   pendingAttachment=null;
@@ -263,7 +343,7 @@ function ensureMessagePopover(){
 }
 
 function copyMessageText(m){
- const value=m.x||m.file?.name||'';
+ const value=m.x||m.file?.name||m.file?.url||'';
  if(!value)return toast('Nothing to copy');
  if(navigator.clipboard?.writeText){
   navigator.clipboard.writeText(value).then(()=>toast('Copied')).catch(()=>toast(value));

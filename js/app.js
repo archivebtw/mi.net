@@ -1,6 +1,28 @@
 // Attachments, global events and application boot
-document.getElementById('filePicker').onchange=e=>{
- const f=e.target.files[0];if(!f)return;pendingAttachment={name:f.name,type:f.type||'application/octet-stream',size:f.size};e.target.value='';let c=current();if(c&&!(c.kind==='public'&&c.mode==='hybrid'))renderChat(c);toast('Attachment ready to send')
+function readAttachmentAsDataUrl(file){
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();
+  reader.onload=()=>resolve(reader.result);
+  reader.onerror=()=>reject(new Error('Unable to read file'));
+  reader.readAsDataURL(file);
+ });
+}
+
+document.getElementById('filePicker').onchange=async e=>{
+ const f=e.target.files[0];
+ if(!f)return;
+ const type=f.type||'application/octet-stream';
+ try{
+  const url=(type.startsWith('image/')||type.startsWith('video/'))?await readAttachmentAsDataUrl(f):'';
+  pendingAttachment={name:f.name,type,size:f.size,url};
+  e.target.value='';
+  let c=current();
+  if(c&&!(c.kind==='public'&&c.mode==='hybrid'))renderChat(c);
+  toast(type.startsWith('image/')?'Photo ready to send':type.startsWith('video/')?'Video ready to send':'Attachment ready to send');
+ }catch(err){
+  e.target.value='';
+  toast('Could not load attachment');
+ }
 };
 
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>nav(b.dataset.view));

@@ -11,9 +11,29 @@
 <link rel="stylesheet" href="css/chat.css">
 <link rel="stylesheet" href="css/pages.css">
 <link rel="stylesheet" href="css/overlays.css">
+<link rel="stylesheet" href="css/loader.css">
 <link rel="stylesheet" href="css/responsive.css">
 </head>
-<body>
+<body class="is-loading">
+
+<div class="site-loader" id="siteLoader" aria-label="Loading mi.net">
+  <div class="site-loader__inner">
+    <div class="site-loader__brand" aria-hidden="true">
+      <span class="site-loader__mi">mi</span><span class="site-loader__dot">.</span><span class="site-loader__net">net</span>
+    </div>
+
+    <div class="site-loader__tagline">talk. gather. create.</div>
+
+    <div class="site-loader__track" aria-hidden="true">
+      <span class="site-loader__progress"></span>
+    </div>
+
+    <div class="site-loader__status">
+      <span>entering your internet</span>
+      <span class="site-loader__counter" id="loaderCounter">00</span>
+    </div>
+  </div>
+</div>
 
 <div class="app">
   <aside class="rail">
@@ -144,6 +164,7 @@
 
 <div class="toastbox" id="toasts"></div>
 
+<script src="js/loader.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/data.js"></script>
 <script src="js/state.js"></script>

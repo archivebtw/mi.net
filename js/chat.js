@@ -29,12 +29,54 @@ function countLibrary(c,type){
  if(type==='links')return msgs.filter(m=>/https?:\/\/|www\./i.test(m.x||'')).length;
  return 0;
 }
+const MESSAGE_REACTIONS=['👍','❤️','😂','😮','😢','🔥'];
+
+function ensureMessageReactionMap(m){
+ if(!m.reactionMap||typeof m.reactionMap!=='object'||Array.isArray(m.reactionMap)){
+  m.reactionMap={};
+  const legacyCount=Number(m.reactions)||0;
+  if(legacyCount>0){
+   m.reactionMap['❤️']={count:legacyCount,mine:!!m.reacted};
+  }
+ }
+ for(const emoji of Object.keys(m.reactionMap)){
+  const item=m.reactionMap[emoji];
+  if(typeof item==='number'){
+   m.reactionMap[emoji]={count:Math.max(0,item),mine:false};
+  }else{
+   item.count=Math.max(0,Number(item.count)||0);
+   item.mine=!!item.mine;
+  }
+  if(m.reactionMap[emoji].count===0)delete m.reactionMap[emoji];
+ }
+ return m.reactionMap;
+}
+
+function reactionSummaryHtml(m){
+ const map=ensureMessageReactionMap(m);
+ const chips=Object.entries(map)
+  .filter(([,value])=>value.count>0)
+  .sort((a,b)=>Number(b[1].mine)-Number(a[1].mine)||b[1].count-a[1].count)
+  .map(([emoji,value])=>`<button class="reaction-chip ${value.mine?'mine':''}" data-reaction-chip="${m.id}" data-emoji="${emoji}" aria-label="${emoji} ${value.count}">${emoji}<span>${value.count}</span></button>`)
+  .join('');
+
+ const mineEmoji=Object.entries(map).find(([,value])=>value.mine)?.[0]||'';
+
+ return `<div class="reaction-zone ${chips?'has-reactions':''}" data-reaction-zone="${m.id}">
+  <button class="reaction-trigger ${mineEmoji?'mine':''}" data-reaction-trigger="${m.id}" aria-label="Choose reaction" aria-expanded="false">☺</button>
+  <div class="reaction-chips">${chips}</div>
+  <div class="reaction-picker" role="menu" aria-label="Message reactions">
+   ${MESSAGE_REACTIONS.map(emoji=>`<button class="reaction-option ${mineEmoji===emoji?'selected':''}" data-reaction-pick="${m.id}" data-emoji="${emoji}" role="menuitem" aria-label="React ${emoji}">${emoji}</button>`).join('')}
+  </div>
+ </div>`;
+}
+
 function msg(m){
  const hit=chatSearchQuery&&`${m.a} ${m.x||''} ${m.file?.name||''}`.toLowerCase().includes(chatSearchQuery.toLowerCase());
  return `<article class="msg ${m.own?'own':''} ${hit?'search-hit':''}" data-msg="${m.id}">${A(m.i,m.own?'dark':'')}<div><div class="author"><strong>${esc(m.a)}</strong><time>${esc(m.t)}</time></div>
  ${m.reply?`<div class="replyquote"><strong>${esc(m.reply.a)}</strong><br>${esc(m.reply.x).slice(0,100)}</div>`:''}
  <div class="bubble">${m.x?esc(m.x):''}${m.file?`<div class="filecard"><span class="icon">${svg(m.file.type?.startsWith('image/')?'image':'file')}</span><div class="filemeta"><strong>${esc(m.file.name)}</strong><small>${esc(m.file.type||'file')} · ${formatSize(m.file.size||0)}</small></div></div>`:''}</div>
- <div class="msgactions"><button class="react ${m.reacted?'active':''}" data-react="${m.id}">♡ ${m.reactions||0}</button><button class="react" data-reply="${m.id}">Reply</button></div></div></article>`;
+ <div class="msgactions">${reactionSummaryHtml(m)}<button class="react reply-action" data-reply="${m.id}">Reply</button></div></div></article>`;
 }
 function composerHtml(c,placeholder){
  return `${replyTarget?`<div class="replybar"><div><strong>Reply to ${esc(replyTarget.a)}</strong><span>${esc(replyTarget.x||replyTarget.file?.name||'Attachment').slice(0,90)}</span></div><button class="mini-close" id="cancelReply">×</button></div>`:''}
@@ -68,14 +110,100 @@ function bindChat(c){
  bindHeaderCommon(c);
  const call=document.getElementById('callBtn');if(call)call.onclick=()=>startCall(c);
  const input=document.getElementById('messageInput'),send=document.getElementById('sendBtn');
- const go=()=>{let x=input.value.trim();if(!x&&!pendingAttachment)return;const m={id:id(),a:state.me.name,i:state.me.initials,t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),x,own:1,reactions:0};if(replyTarget)m.reply={a:replyTarget.a,x:replyTarget.x||replyTarget.file?.name||'Attachment'};if(pendingAttachment)m.file={...pendingAttachment};c.messages=c.messages||[];c.messages.push(m);c.preview=x||('Attached '+pendingAttachment.name);c.time='now';replyTarget=null;pendingAttachment=null;persist();renderChat(c);renderList();setTimeout(scrollBottom,0)};
+ const go=()=>{let x=input.value.trim();if(!x&&!pendingAttachment)return;const m={id:id(),a:state.me.name,i:state.me.initials,t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),x,own:1,reactions:0,reactionMap:{}};if(replyTarget)m.reply={a:replyTarget.a,x:replyTarget.x||replyTarget.file?.name||'Attachment'};if(pendingAttachment)m.file={...pendingAttachment};c.messages=c.messages||[];c.messages.push(m);c.preview=x||('Attached '+pendingAttachment.name);c.time='now';replyTarget=null;pendingAttachment=null;persist();renderChat(c);renderList();setTimeout(scrollBottom,0)};
  send.onclick=go;input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go()}};
  document.getElementById('attachBtn').onclick=()=>document.getElementById('filePicker').click();
  const cr=document.getElementById('cancelReply');if(cr)cr.onclick=()=>{replyTarget=null;renderChat(c)};
  const ca=document.getElementById('cancelAttach');if(ca)ca.onclick=()=>{pendingAttachment=null;renderChat(c)};
- chat.querySelectorAll('[data-react]').forEach(b=>b.onclick=()=>{let m=c.messages.find(x=>x.id===b.dataset.react);m.reacted=!m.reacted;m.reactions=Math.max(0,(m.reactions||0)+(m.reacted?1:-1));persist();renderChat(c)});
+ bindMessageReactions(c);
  chat.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{replyTarget=c.messages.find(x=>x.id===b.dataset.reply);renderChat(c);setTimeout(()=>document.getElementById('messageInput')?.focus(),0)});
 }
+
+function closeMessageReactionPickers(exceptZone=null){
+ chat.querySelectorAll('.reaction-zone.picker-open').forEach(zone=>{
+  if(zone!==exceptZone){
+   zone.classList.remove('picker-open');
+   const trigger=zone.querySelector('[data-reaction-trigger]');
+   if(trigger)trigger.setAttribute('aria-expanded','false');
+  }
+ });
+}
+
+function syncLegacyReactionFields(m){
+ const map=ensureMessageReactionMap(m);
+ m.reactions=Object.values(map).reduce((sum,item)=>sum+(item.count||0),0);
+ m.reacted=Object.values(map).some(item=>item.mine);
+}
+
+function setMessageReaction(c,m,emoji){
+ const map=ensureMessageReactionMap(m);
+ const currentMine=Object.keys(map).find(key=>map[key]?.mine);
+
+ if(currentMine===emoji){
+  map[emoji].count=Math.max(0,map[emoji].count-1);
+  map[emoji].mine=false;
+  if(map[emoji].count===0)delete map[emoji];
+ }else{
+  if(currentMine&&map[currentMine]){
+   map[currentMine].count=Math.max(0,map[currentMine].count-1);
+   map[currentMine].mine=false;
+   if(map[currentMine].count===0)delete map[currentMine];
+  }
+
+  if(!map[emoji])map[emoji]={count:0,mine:false};
+  map[emoji].count+=1;
+  map[emoji].mine=true;
+ }
+
+ syncLegacyReactionFields(m);
+ persist();
+
+ const messageArea=document.getElementById('messages');
+ const previousScroll=messageArea?.scrollTop||0;
+ renderChat(c);
+ const nextArea=document.getElementById('messages');
+ if(nextArea)nextArea.scrollTop=previousScroll;
+}
+
+function bindMessageReactions(c){
+ chat.querySelectorAll('[data-reaction-trigger]').forEach(trigger=>{
+  trigger.onclick=e=>{
+   e.stopPropagation();
+   const zone=trigger.closest('.reaction-zone');
+   const willOpen=!zone.classList.contains('picker-open');
+   closeMessageReactionPickers(zone);
+   zone.classList.toggle('picker-open',willOpen);
+   trigger.setAttribute('aria-expanded',String(willOpen));
+  };
+ });
+
+ chat.querySelectorAll('[data-reaction-pick]').forEach(option=>{
+  option.onclick=e=>{
+   e.stopPropagation();
+   const m=c.messages.find(item=>item.id===option.dataset.reactionPick);
+   if(m)setMessageReaction(c,m,option.dataset.emoji);
+  };
+ });
+
+ chat.querySelectorAll('[data-reaction-chip]').forEach(chip=>{
+  chip.onclick=e=>{
+   e.stopPropagation();
+   const m=c.messages.find(item=>item.id===chip.dataset.reactionChip);
+   if(m)setMessageReaction(c,m,chip.dataset.emoji);
+  };
+ });
+}
+
+if(!window.__miMessageReactionPickerBound){
+ window.__miMessageReactionPickerBound=true;
+ document.addEventListener('pointerdown',e=>{
+  if(!e.target.closest('.reaction-zone'))closeMessageReactionPickers();
+ });
+ document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeMessageReactionPickers();
+ });
+}
+
 function bindPublic(c){
  bindHeaderCommon(c);
  chat.querySelectorAll('[data-like-post]').forEach(b=>b.onclick=()=>{let p=c.posts.find(x=>x.id===b.dataset.likePost);p.liked=!p.liked;p.l=Math.max(0,p.l+(p.liked?1:-1));persist();renderPublic(c)});

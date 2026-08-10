@@ -94,7 +94,7 @@ function miFriendlyAuthError(error){
   if(/invalid login credentials/i.test(message))return 'Incorrect email or password.';
   if(/email not confirmed/i.test(message))return 'Confirm your email before signing in.';
   if(/user already registered/i.test(message))return 'An account with this email already exists.';
-  if(/database error saving new user/i.test(message))return 'Could not create the profile. The username may already be used or blocked.';
+  if(/database error saving new user/i.test(message))return 'Could not create the account. The username may already be taken/blocked, or the Supabase profile trigger is not installed correctly.';
   if(/duplicate key|unique/i.test(message))return 'This username is already taken.';
   if(/password/i.test(message)&&/short|least|characters/i.test(message))return 'Password must be at least 8 characters.';
   return message;
@@ -156,19 +156,35 @@ async function miEstablishSession(session){
 }
 
 async function miCheckUsernameAvailability(username){
-  if(!miAuth.client)return {available:false,message:'Supabase is not connected.'};
+  if(!miAuth.client){
+    return {available:null,degraded:true,message:'Supabase is not connected.'};
+  }
 
-  const {data,error}=await miAuth.client.rpc('is_username_available',{
-    candidate:username.replace(/^@/,'')
-  });
+  const candidate=username.replace(/^@/,'');
+
+  const {data,error}=await miAuth.client.rpc('is_username_available',{candidate});
 
   if(error){
-    console.error('Username availability:',error);
-    return {available:false,message:'Could not verify username.'};
+    console.error('mi.net username RPC failed', {
+      message:error.message,
+      code:error.code,
+      details:error.details,
+      hint:error.hint
+    });
+
+    // Availability is a UX pre-check only.
+    // The database still enforces username rules atomically on signup/update.
+    return {
+      available:null,
+      degraded:true,
+      code:error.code||'rpc-error',
+      message:'Username pre-check is temporarily unavailable.'
+    };
   }
 
   return {
     available:Boolean(data),
+    degraded:false,
     message:data?'':'This username is already taken or not allowed.'
   };
 }
@@ -181,7 +197,13 @@ async function miSaveRemoteProfile({displayName,username,bio}){
 
   const availability=await miCheckUsernameAvailability(username);
   const sameUsername=(miAuth.profile?.username||'').toLowerCase()===username.toLowerCase();
-  if(!availability.available&&!sameUsername)return {ok:false,message:availability.message};
+
+  if(availability.available===false&&!sameUsername){
+    return {ok:false,message:availability.message};
+  }
+
+  // If pre-check is unavailable, let PostgreSQL validate the UPDATE below.
+
 
   const {data,error}=await miAuth.client
     .from('profiles')
@@ -279,7 +301,7 @@ async function miHandleSignUp(event){
   const username=usernameResult.value.replace(/^@/,'');
   const availability=await miCheckUsernameAvailability(username);
 
-  if(!availability.available){
+  if(availability.available===false){
     miSetAuthBusy(form,false);
     usernameInput.classList.add('auth-invalid');
     errorElement.textContent=availability.message;
@@ -288,7 +310,15 @@ async function miHandleSignUp(event){
     return;
   }
 
-  miAuthMessage('Creating account…');
+  // A temporary RPC/Data API error should not block registration.
+  // The profiles unique index + CHECK constraint + auth trigger remain authoritative.
+  if(availability.degraded){
+    usernameInput.classList.remove('auth-invalid');
+    errorElement.hidden=true;
+    miAuthMessage('Creating account… username will be validated by Supabase.');
+  }else{
+    miAuthMessage('Creating account…');
+  }
 
   const {data,error}=await miAuth.client.auth.signUp({
     email,

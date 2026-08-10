@@ -1,155 +1,348 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#ffffff" />
-  <title>mi.net — talk. gather. create.</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mi.net — talk. gather. create.</title>
+<style>
+:root{
+  --bg:#fff;--text:#050505;--muted:#747474;--soft:#f6f6f6;--soft2:#fafafa;
+  --border:#e8e8e8;--border2:#d6d6d6;--rail:72px;--list:338px;--details:300px;
+  --r:10px;--ease:160ms ease;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+body{overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #000;outline-offset:2px}
+svg{display:block}
+.icon{width:19px;height:19px;display:inline-grid;place-items:center}
+.icon svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.app{height:100vh;display:grid;grid-template-columns:var(--rail) var(--list) minmax(430px,1fr) var(--details)}
+.rail{border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;align-items:center;background:#fff}
+.logo{width:44px;height:44px;border:0;border-radius:14px;background:#000;color:#fff;font-weight:800;font-size:16px;letter-spacing:-.8px}
+.railnav{display:grid;gap:8px;margin-top:30px}
+.railbottom{margin-top:auto;display:grid;gap:8px}
+.railbtn,.iconbtn{border:0;background:transparent;width:42px;height:42px;border-radius:10px;display:grid;place-items:center;transition:background var(--ease)}
+.railbtn:hover,.railbtn.active,.iconbtn:hover{background:var(--soft)}
+.profile-dot{width:42px;height:42px;border-radius:50%;border:1px solid #000;background:#000;color:#fff;font-size:11px;font-weight:800}
+
+.listpane{min-width:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:#fff}
+.listhead{height:64px;flex:0 0 64px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 18px}
+.wordmark{font-size:23px;font-weight:800;letter-spacing:-1.2px}
+.headbtns{display:flex;gap:2px}
+.searchwrap{padding:11px 12px 7px}
+.searchbox{height:41px;border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;gap:9px;padding:0 11px;transition:border var(--ease)}
+.searchbox:focus-within{border-color:#000}
+.searchbox input{border:0;outline:0;background:transparent;width:100%;min-width:0;font-size:12px}
+.filters{display:flex;gap:6px;padding:4px 10px 10px;overflow:auto}
+.filter{min-height:31px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:0 11px;font-size:11px;font-weight:700;color:var(--muted)}
+.filter:hover,.filter.active{border-color:#000;color:#000}
+.listcontent{overflow:auto;min-height:0}
+.sectionlabel{padding:10px 15px 6px;color:var(--muted);font-size:9px;text-transform:uppercase;font-weight:800;letter-spacing:.1em}
+.conv{width:100%;border:0;background:#fff;min-height:70px;padding:9px 12px;display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;text-align:left;transition:background var(--ease)}
+.conv:hover,.conv.active{background:var(--soft)}
+.avatar{width:42px;height:42px;border:1px solid var(--border2);border-radius:50%;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:800}
+.avatar.square{border-radius:12px}.avatar.dark{background:#000;border-color:#000;color:#fff}
+.convmain{min-width:0}.convtitle{display:flex;align-items:center;gap:6px}.convtitle strong{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.type{color:var(--muted);font-size:9px}.preview{margin-top:4px;color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.convmeta{display:flex;flex-direction:column;align-items:flex-end;gap:6px}.convmeta time{font-size:9px;color:var(--muted)}
+.badge{min-width:18px;height:18px;border-radius:999px;background:#000;color:#fff;display:grid;place-items:center;padding:0 5px;font-size:9px}
+
+.chatpane{min-width:0;display:flex;flex-direction:column;background:#fff}
+.chathead{height:64px;flex:0 0 64px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:0 14px}
+.chatname strong,.chatname span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chatname strong{font-size:12px}.chatname span{margin-top:3px;color:var(--muted);font-size:10px}
+.chatactions{display:flex;gap:2px}
+.messages{min-height:0;flex:1;overflow:auto;padding:30px clamp(24px,6vw,78px);background:#fff}
+.day{width:max-content;margin:0 auto 24px;border:1px solid var(--border);border-radius:999px;padding:5px 9px;color:var(--muted);font-size:9px}
+.msg{max-width:630px;display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;margin-bottom:18px}
+.msg.own{margin-left:auto}.msg .avatar{width:34px;height:34px;font-size:9px}
+.author{display:flex;gap:7px;align-items:baseline;margin-bottom:5px}.author strong{font-size:10px}.author time{font-size:9px;color:var(--muted)}
+.bubble{border:1px solid var(--border);background:#fff;border-radius:9px;padding:10px 12px;font-size:12px;line-height:1.55}
+.msg.own .bubble{background:var(--soft);border-color:var(--soft)}
+.msgactions{margin-top:5px;display:flex;gap:5px}.react{border:1px solid var(--border);background:#fff;border-radius:999px;min-height:24px;padding:0 8px;font-size:9px}.react:hover,.react.active{border-color:#000}
+.composer{min-height:68px;border-top:1px solid var(--border);padding:10px 14px;display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:end}
+.composer textarea{width:100%;min-height:42px;max-height:120px;resize:none;border:1px solid var(--border);border-radius:9px;outline:0;padding:11px 12px;line-height:1.4;font-size:12px}.composer textarea:focus{border-color:#000}
+.send{width:42px;height:42px;border:1px solid #000;background:#000;color:#fff;border-radius:9px;display:grid;place-items:center}
+.send:hover{opacity:.82}
+
+.details{border-left:1px solid var(--border);background:#fff;overflow:auto}
+.detailtop{text-align:center;padding:28px 18px;border-bottom:1px solid var(--border)}
+.detailtop .avatar{width:76px;height:76px;font-size:16px;margin:0 auto 13px}.detailtop h2{margin:0;font-size:17px}.handle{margin-top:4px;color:var(--muted);font-size:10px}.detailtop p{margin:12px auto 0;max-width:230px;color:var(--muted);font-size:10px;line-height:1.55}
+.detailactions{margin-top:14px;display:flex;gap:7px;justify-content:center}.outline{min-height:34px;border:1px solid #000;background:#fff;border-radius:7px;padding:0 12px;font-size:10px;font-weight:800}.outline:hover{background:#000;color:#fff}
+.detaillist{padding:8px}.detailrow{width:100%;min-height:45px;border:0;background:#fff;border-radius:8px;display:flex;align-items:center;gap:10px;padding:0 10px;text-align:left}.detailrow:hover{background:var(--soft)}.detailrow span:last-of-type{font-size:11px}.detailrow small{margin-left:auto;color:var(--muted);font-size:9px}
+
+.empty{margin:auto;text-align:center;width:min(430px,80%)}.emptylogo{width:64px;height:64px;border:1px solid #000;border-radius:18px;display:grid;place-items:center;margin:0 auto 18px;font-weight:800}.empty h1{margin:0 0 8px;font-size:24px;letter-spacing:-.8px}.empty p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+
+.publicpost{max-width:680px;margin:0 auto 24px;padding-bottom:19px;border-bottom:1px solid var(--border)}.pubhead{display:flex;align-items:center;gap:9px;margin-bottom:10px}.pubhead strong{font-size:11px}.pubhead time{margin-left:auto;color:var(--muted);font-size:9px}.pubbody{font-size:13px;line-height:1.65}.pubfoot{display:flex;gap:6px;margin-top:12px}.metric{min-height:29px;border:1px solid var(--border);background:#fff;border-radius:7px;padding:0 9px;color:var(--muted);font-size:9px}.metric:hover{border-color:#000;color:#000}
+
+.page{height:100%;overflow:auto}.pagehead{padding:19px 16px 10px}.pagehead h2{margin:0;font-size:17px}.pagehead p{margin:5px 0 0;color:var(--muted);font-size:10px}
+.person,.publicrow{width:100%;min-height:66px;border:0;background:#fff;padding:9px 12px;display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;text-align:left}.person:hover,.publicrow:hover{background:var(--soft)}
+.copy strong{font-size:11px}.copy small{display:block;margin-top:4px;color:var(--muted);font-size:9px}.chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 13px}.chip{min-height:29px;border:1px solid var(--border);border-radius:999px;background:#fff;padding:0 10px;font-size:9px}.chip:hover{border-color:#000}
+
+.popover{position:fixed;z-index:100;width:190px;padding:6px;border:1px solid var(--border2);border-radius:10px;background:#fff;box-shadow:0 14px 40px rgba(0,0,0,.12)}.popover[hidden]{display:none}.popover button{width:100%;min-height:40px;border:0;background:#fff;border-radius:7px;display:flex;align-items:center;gap:10px;padding:0 10px;font-size:10px}.popover button:hover{background:var(--soft)}
+.modalback{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.42);display:grid;place-items:center;padding:20px}.modalback[hidden]{display:none}.modal{width:min(520px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:12px}.modalhead{height:56px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 12px}.modalhead strong{justify-self:center;font-size:12px}.primary{justify-self:end;min-height:34px;border:1px solid #000;background:#000;color:#fff;border-radius:7px;padding:0 12px;font-size:10px;font-weight:800}.modalbody{padding:18px}.field{display:grid;gap:7px;margin-bottom:15px}.field>span,.modes legend{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.field input,.field textarea{width:100%;border:1px solid var(--border);border-radius:8px;outline:0;background:#fff;padding:0 11px}.field input{height:41px}.field textarea{min-height:84px;padding-top:10px;resize:vertical}.field input:focus,.field textarea:focus{border-color:#000}.modes{border:0;padding:0;margin:0 0 15px}.modes legend{margin-bottom:8px}.modes label{min-height:52px;border:1px solid var(--border);border-radius:8px;margin-bottom:7px;padding:9px 11px;display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:center}.modes label:has(input:checked){border-color:#000}.modes span{display:grid;gap:2px}.modes strong{font-size:10px}.modes small{font-size:9px;color:var(--muted)}
+.toastbox{position:fixed;right:16px;bottom:16px;z-index:150;display:grid;gap:8px}.toast{min-width:220px;background:#000;color:#fff;border-radius:7px;padding:10px 12px;font-size:10px}
+
+.mobilebar{display:none}
+
+@media(max-width:1100px){:root{--details:250px;--list:310px}}
+@media(max-width:930px){.app{grid-template-columns:var(--rail) var(--list) minmax(380px,1fr)}.details{display:none}}
+@media(max-width:720px){
+  .app{display:block}.rail,.details{display:none}
+  .listpane,.chatpane{position:fixed;inset:52px 0 0;border:0}
+  .listhead{display:none}
+  .chatpane{z-index:20;transform:translateX(100%);transition:transform 180ms ease}
+  body.chatopen .chatpane{transform:translateX(0)}
+  body.chatopen .listpane{visibility:hidden}
+  .mobilebar{display:grid;position:fixed;z-index:60;top:0;left:0;right:0;height:52px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.97);grid-template-columns:52px 1fr 52px;align-items:center}
+  .mobilebar .iconbtn{justify-self:center}.mobiletitle{text-align:center;font-size:12px;font-weight:800}
+  #back{visibility:hidden}body.chatopen #back{visibility:visible}
+  .messages{padding:20px 12px}.msg{max-width:95%}.chathead{display:none}
+  .popover{left:12px!important;right:12px!important;width:auto;top:58px!important}
+  .modalback{align-items:end;padding:0}.modal{width:100%;border-radius:14px 14px 0 0;max-height:92vh}
+  .toastbox{left:12px;right:12px;bottom:12px}
+}
+</style>
 </head>
 <body>
-  <div class="app">
 
-    <!-- SEGMENT 1: PRIMARY NAV -->
-    <aside class="rail" aria-label="Primary navigation">
-      <button class="brand" data-view="chats" aria-label="mi.net">mi</button>
+<div class="app">
+  <aside class="rail">
+    <button class="logo" data-view="chats">mi</button>
+    <nav class="railnav">
+      <button class="railbtn active" data-view="chats" title="Chats"><span class="icon" data-icon="message"></span></button>
+      <button class="railbtn" data-view="contacts" title="Contacts"><span class="icon" data-icon="users"></span></button>
+      <button class="railbtn" data-view="publics" title="Publics"><span class="icon" data-icon="hash"></span></button>
+      <button class="railbtn" data-view="explore" title="Explore"><span class="icon" data-icon="compass"></span></button>
+    </nav>
+    <div class="railbottom">
+      <button class="railbtn" id="settings"><span class="icon" data-icon="settings"></span></button>
+      <button class="profile-dot" data-view="profile">KD</button>
+    </div>
+  </aside>
 
-      <nav class="rail-nav">
-        <button class="rail-btn active" data-view="chats" aria-label="Chats">
-          <span class="icon" data-icon="message"></span>
-        </button>
-        <button class="rail-btn" data-view="contacts" aria-label="Contacts">
-          <span class="icon" data-icon="users"></span>
-        </button>
-        <button class="rail-btn" data-view="publics" aria-label="Publics">
-          <span class="icon" data-icon="hash"></span>
-        </button>
-        <button class="rail-btn" data-view="explore" aria-label="Explore">
-          <span class="icon" data-icon="compass"></span>
-        </button>
-      </nav>
-
-      <div class="rail-bottom">
-        <button class="rail-btn" id="settingsBtn" aria-label="Settings">
-          <span class="icon" data-icon="settings"></span>
-        </button>
-        <button class="profile-orb" data-view="profile" aria-label="Profile">KD</button>
+  <aside class="listpane">
+    <header class="listhead">
+      <div class="wordmark">mi.net</div>
+      <div class="headbtns">
+        <button class="iconbtn" id="focusSearch"><span class="icon" data-icon="search"></span></button>
+        <button class="iconbtn" id="createBtn"><span class="icon" data-icon="plus"></span></button>
       </div>
-    </aside>
+    </header>
+    <div class="searchwrap">
+      <label class="searchbox">
+        <span class="icon" data-icon="search"></span>
+        <input id="search" placeholder="Search mi.net">
+      </label>
+    </div>
+    <div class="filters" id="filters">
+      <button class="filter active" data-filter="all">All</button>
+      <button class="filter" data-filter="direct">Direct</button>
+      <button class="filter" data-filter="group">Groups</button>
+      <button class="filter" data-filter="public">Publics</button>
+    </div>
+    <div class="listcontent" id="list"></div>
+  </aside>
 
-    <!-- SEGMENT 2: LIST PANE -->
-    <aside class="list-pane">
-      <header class="list-header">
-        <div class="wordmark">mi.net</div>
-        <div class="header-actions">
-          <button class="icon-btn" id="searchToggle" aria-label="Search">
-            <span class="icon" data-icon="search"></span>
-          </button>
-          <button class="icon-btn" id="createMenuBtn" aria-label="Create">
-            <span class="icon" data-icon="plus"></span>
-          </button>
-        </div>
-      </header>
+  <main class="chatpane" id="chat">
+    <div class="empty">
+      <div class="emptylogo">mi.net</div>
+      <h1>Your internet, without the noise.</h1>
+      <p>Choose a chat, group or public to start talking.</p>
+    </div>
+  </main>
 
-      <div class="search-row" id="searchRow">
-        <label class="search-box">
-          <span class="icon" data-icon="search"></span>
-          <input id="globalSearch" type="search" placeholder="Search mi.net" />
-        </label>
-      </div>
+  <aside class="details" id="details"></aside>
+</div>
 
-      <div class="filter-tabs" id="filterTabs">
-        <button class="filter-tab active" data-filter="all">All</button>
-        <button class="filter-tab" data-filter="direct">Direct</button>
-        <button class="filter-tab" data-filter="group">Groups</button>
-        <button class="filter-tab" data-filter="public">Publics</button>
-      </div>
+<header class="mobilebar">
+  <button class="iconbtn" id="back"><span class="icon" data-icon="arrow-left"></span></button>
+  <div class="mobiletitle" id="mobileTitle">Chats</div>
+  <button class="iconbtn" id="mobileCreate"><span class="icon" data-icon="plus"></span></button>
+</header>
 
-      <div class="list-content" id="listContent"></div>
-    </aside>
+<div class="popover" id="popover" hidden>
+  <button data-create="direct"><span class="icon" data-icon="user-plus"></span>New message</button>
+  <button data-create="group"><span class="icon" data-icon="users"></span>New group</button>
+  <button data-create="public"><span class="icon" data-icon="hash"></span>New public</button>
+</div>
 
-    <!-- SEGMENT 3: MAIN CONVERSATION PANE -->
-    <main class="chat-pane" id="chatPane">
-      <div class="empty-chat">
-        <div class="empty-mark">mi.net</div>
-        <h1>Your internet, without the noise.</h1>
-        <p>Choose a chat, group or public to start talking.</p>
-      </div>
-    </main>
+<div class="modalback" id="modal" hidden>
+  <section class="modal">
+    <header class="modalhead">
+      <button class="iconbtn" id="closeModal"><span class="icon" data-icon="x"></span></button>
+      <strong>Create a public</strong>
+      <button class="primary" id="savePublic">Create</button>
+    </header>
+    <div class="modalbody">
+      <label class="field"><span>Name</span><input id="pubName" placeholder="Design Daily"></label>
+      <label class="field"><span>Address</span><input id="pubAddress" placeholder="designdaily"></label>
+      <label class="field"><span>Description</span><textarea id="pubDesc" placeholder="What is this public about?"></textarea></label>
 
-    <!-- SEGMENT 4: DETAILS PANE -->
-    <aside class="details-pane" id="detailsPane"></aside>
+      <fieldset class="modes">
+        <legend>Mode</legend>
+        <label><input type="radio" name="mode" value="broadcast"><span><strong>Broadcast</strong><small>Only admins publish.</small></span></label>
+        <label><input type="radio" name="mode" value="community"><span><strong>Community</strong><small>Everyone can talk.</small></span></label>
+        <label><input type="radio" name="mode" value="hybrid" checked><span><strong>Hybrid</strong><small>Posts with discussions.</small></span></label>
+      </fieldset>
 
-  </div>
+      <fieldset class="modes">
+        <legend>Visibility</legend>
+        <label><input type="radio" name="visibility" checked><span><strong>Public</strong><small>Anyone can discover it.</small></span></label>
+        <label><input type="radio" name="visibility"><span><strong>Private</strong><small>Invite only.</small></span></label>
+      </fieldset>
+    </div>
+  </section>
+</div>
 
-  <!-- SEGMENT 5: MOBILE TOP BAR -->
-  <header class="mobile-topbar">
-    <button class="icon-btn" id="mobileBackBtn" aria-label="Back">
-      <span class="icon" data-icon="arrow-left"></span>
-    </button>
-    <div class="mobile-title" id="mobileTitle">mi.net</div>
-    <button class="icon-btn" id="mobileCreateBtn" aria-label="Create">
-      <span class="icon" data-icon="plus"></span>
-    </button>
-  </header>
+<div class="toastbox" id="toasts"></div>
 
-  <!-- SEGMENT 6: CREATE MENU -->
-  <div class="popover" id="createPopover" hidden>
-    <button data-create="direct"><span class="icon" data-icon="user-plus"></span><span>New message</span></button>
-    <button data-create="group"><span class="icon" data-icon="users"></span><span>New group</span></button>
-    <button data-create="public"><span class="icon" data-icon="hash"></span><span>New public</span></button>
-  </div>
+<script>
+const I={
+message:'<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>',
+users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+hash:'<path d="M4 9h16M3 15h16M10 3 8 21M16 3l-2 18"/>',
+compass:'<circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5z"/>',
+settings:'<circle cx="12" cy="12" r="3"/><path d="M4 12a8 8 0 0 1 .2-1.8l-2-1.5 2-3.4 2.4 1A8 8 0 0 1 9.5 4L10 1.5h4l.5 2.5a8 8 0 0 1 2.9 1.3l2.4-1 2 3.4-2 1.5A8 8 0 0 1 20 12a8 8 0 0 1-.2 1.8l2 1.5-2 3.4-2.4-1a8 8 0 0 1-2.9 1.3L14 21.5h-4L9.5 19a8 8 0 0 1-2.9-1.3l-2.4 1-2-3.4 2-1.5A8 8 0 0 1 4 12z"/>',
+search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+plus:'<path d="M12 5v14M5 12h14"/>',
+phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.7 19.7 0 0 1-8.6-3.1 19.2 19.2 0 0 1-6-6A19.7 19.7 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.4 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/>',
+more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+paperclip:'<path d="m21.4 11.6-8.5 8.5a6 6 0 1 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 1 1-2.8-2.8l8.5-8.5"/>',
+send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/>',
+link:'<path d="M10 13a5 5 0 0 0 7 .1l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7-.1l-2 2a5 5 0 0 0 7 7l1-1"/>',
+file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+'user-plus':'<path d="M15 21a7 7 0 0 0-14 0"/><circle cx="8" cy="8" r="4"/><path d="M19 8v6M16 11h6"/>',
+x:'<path d="M6 6l12 12M18 6 6 18"/>',
+'arrow-left':'<path d="M19 12H5M12 19l-7-7 7-7"/>'
+};
+const svg=n=>`<svg viewBox="0 0 24 24">${I[n]||I.more}</svg>`;
+function icons(root=document){root.querySelectorAll('[data-icon]').forEach(x=>x.innerHTML=svg(x.dataset.icon))}
 
-  <!-- SEGMENT 7: CREATE PUBLIC MODAL -->
-  <div class="modal-backdrop" id="publicModal" hidden>
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="publicModalTitle">
-      <header class="modal-header">
-        <button class="icon-btn modal-close" aria-label="Close"><span class="icon" data-icon="x"></span></button>
-        <strong id="publicModalTitle">Create a public</strong>
-        <button class="compact-primary" id="createPublicSubmit">Create</button>
-      </header>
+const me={name:'Kim Dung',handle:'@kimdung',initials:'KD'};
+let data=[
+{id:'alex',kind:'direct',name:'Alex Morgan',handle:'@alex',initials:'AM',preview:'окей, тогда завтра',time:'2m',unread:2,subtitle:'online',desc:'Designer, developer and internet person.',messages:[
+{a:'Alex Morgan',i:'AM',t:'17:12',x:'Ты уже решил, каким будет главный экран mi.net?'},
+{a:'Kim Dung',i:'KD',t:'17:15',x:'Да. Хочу, чтобы человек сразу видел разговоры, а не ленту.',own:1},
+{a:'Alex Morgan',i:'AM',t:'17:17',x:'Тогда паблики тоже ощущаются частью общения, а не отдельной соцсетью.'},
+{a:'Kim Dung',i:'KD',t:'17:20',x:'Именно. Посты живут внутри пабликов, но не являются центром продукта.',own:1}
+]},
+{id:'dev',kind:'group',name:'mi.net dev',handle:'/mi-dev',initials:'MI',preview:'Nora: обновила дизайн',time:'8m',unread:4,subtitle:'8 members',desc:'Private workspace for the mi.net team.',messages:[
+{a:'Nora Ito',i:'NI',t:'16:20',x:'Обновила сетку. Левая колонка теперь чуть компактнее.'},
+{a:'Leo V.',i:'LV',t:'16:23',x:'На мобильном это тоже работает?'},
+{a:'Nora Ito',i:'NI',t:'16:24',x:'Да, там список и чат переключаются как отдельные экраны.'}
+]},
+{id:'design',kind:'public',mode:'hybrid',name:'/design',handle:'mi.net/design',initials:'D',preview:'новая подборка шрифтов',time:'21m',unread:12,subtitle:'18.4K members',desc:'Design, typography and interfaces.',joined:1,posts:[
+{t:'15:50',x:'Новая подборка нейтральных гротесков для интерфейсов: Geist, Inter, Suisse Int’l, Neue Montreal.',r:184,l:824},
+{t:'13:12',x:'Вопрос дня: что важнее в минималистичном интерфейсе — ритм, типографика или пространство?',r:96,l:403}
+]},
+{id:'music',kind:'public',mode:'community',name:'/music',handle:'mi.net/music',initials:'M',preview:'Leo: кто слушал новый альбом?',time:'1h',unread:0,subtitle:'24.1K members',desc:'Albums, artists and discoveries.',joined:1,messages:[
+{a:'Leo V.',i:'LV',t:'15:01',x:'Кто уже слушал новый релиз?'},
+{a:'Mina Sol',i:'MS',t:'15:04',x:'Да. Вторая половина намного сильнее первой.'}
+]},
+{id:'nora',kind:'direct',name:'Nora Ito',handle:'@nora',initials:'NI',preview:'скину макеты вечером',time:'2h',unread:0,subtitle:'last seen recently',desc:'Interface designer.',messages:[
+{a:'Nora Ito',i:'NI',t:'14:12',x:'Я закончу экран паблика сегодня.'},
+{a:'Kim Dung',i:'KD',t:'14:15',x:'Супер. Скинь, когда будет готово.',own:1}
+]}
+];
 
-      <div class="modal-body">
-        <label class="field">
-          <span>Name</span>
-          <input id="publicName" placeholder="Design Daily" maxlength="36" />
-        </label>
+const people=[['Alex Morgan','@alex','AM'],['Nora Ito','@nora','NI'],['Leo V.','@leov','LV'],['Mina Sol','@minasol','MS']];
+const discover=[['/technology','T','31.2K','Software, hardware and the internet.'],['/gaming','G','16.9K','Games, studios, modding and play.'],['/photography','P','9.8K','Frames, cameras and visual stories.'],['/culture','C','14.6K','Films, books, internet and culture.']];
+let active='alex',view='chats',filter='all',query='';
 
-        <label class="field">
-          <span>Address</span>
-          <div class="address-field">
-            <span>mi.net/</span>
-            <input id="publicAddress" placeholder="designdaily" maxlength="28" />
-          </div>
-        </label>
+const A=(i,opt='')=>`<span class="avatar ${opt}">${i}</span>`;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const list=document.getElementById('list'),chat=document.getElementById('chat'),details=document.getElementById('details');
+function toast(x){let n=document.createElement('div');n.className='toast';n.textContent=x;document.getElementById('toasts').append(n);setTimeout(()=>n.remove(),2200)}
 
-        <label class="field">
-          <span>Description</span>
-          <textarea id="publicDescription" placeholder="What is this public about?" maxlength="160"></textarea>
-        </label>
+function renderList(){
+ const q=query.toLowerCase().trim();
+ const items=data.filter(c=>(filter==='all'||c.kind===filter)&&(!q||`${c.name} ${c.handle} ${c.preview}`.toLowerCase().includes(q)));
+ list.innerHTML=`<div class="sectionlabel">Conversations</div>`+items.map(c=>`
+ <button class="conv ${c.id===active?'active':''}" data-conv="${c.id}">
+ ${A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}
+ <div class="convmain"><div class="convtitle"><strong>${esc(c.name)}</strong><span class="type">${c.kind==='direct'?'':c.kind==='group'?'group':c.mode}</span></div><div class="preview">${esc(c.preview)}</div></div>
+ <div class="convmeta"><time>${c.time}</time>${c.unread?`<span class="badge">${c.unread}</span>`:''}</div>
+ </button>`).join('');
+ list.querySelectorAll('[data-conv]').forEach(b=>b.onclick=()=>openConv(b.dataset.conv));
+}
+function renderContacts(){
+ list.innerHTML=`<div class="page"><div class="pagehead"><h2>Contacts</h2><p>People you can reach quickly.</p></div>`+
+ people.map(p=>`<button class="person"><span class="avatar">${p[2]}</span><div class="copy"><strong>${p[0]}</strong><small>${p[1]} · online</small></div><span class="icon">${svg('message')}</span></button>`).join('')+`</div>`;
+}
+function renderPublics(){
+ const pubs=data.filter(c=>c.kind==='public');
+ list.innerHTML=`<div class="page"><div class="pagehead"><h2>Publics</h2><p>Channels and communities you follow.</p></div>`+
+ pubs.map(c=>`<button class="publicrow" data-conv="${c.id}">${A(c.initials,'square dark')}<div class="copy"><strong>${c.name}</strong><small>${c.desc}</small></div><span class="type">${c.subtitle}</span></button>`).join('')+`</div>`;
+ list.querySelectorAll('[data-conv]').forEach(b=>b.onclick=()=>openConv(b.dataset.conv));
+}
+function renderExplore(){
+ list.innerHTML=`<div class="page"><div class="pagehead"><h2>Explore</h2><p>Find people and publics worth joining.</p></div><div class="sectionlabel">Categories</div><div class="chips">${['Technology','Design','Music','Gaming','Culture','Photography'].map(x=>`<button class="chip">${x}</button>`).join('')}</div><div class="sectionlabel">Popular publics</div>`+
+ discover.map(p=>`<div class="publicrow">${A(p[1],'square dark')}<div class="copy"><strong>${p[0]}</strong><small>${p[3]}</small></div><button class="outline join">Join</button></div>`).join('')+`</div>`;
+ list.querySelectorAll('.join').forEach(b=>b.onclick=()=>{b.textContent=b.textContent==='Join'?'Joined':'Join'});
+}
+function renderProfile(){
+ list.innerHTML=`<div class="page"><div class="pagehead"><h2>Profile</h2><p>Your identity on mi.net.</p></div><div style="text-align:center;padding:24px 16px">${A('KD','dark')}<h2 style="font-size:18px;margin:12px 0 2px">Kim Dung</h2><div class="handle">@kimdung</div><p style="font-size:10px;color:var(--muted)">Building a quieter corner of the internet.</p><button class="outline">Edit profile</button></div></div>`;
+}
+function nav(v){
+ view=v;document.querySelectorAll('.railbtn[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+ document.getElementById('filters').style.display=v==='chats'?'flex':'none';
+ if(v==='chats')renderList();if(v==='contacts')renderContacts();if(v==='publics')renderPublics();if(v==='explore')renderExplore();if(v==='profile')renderProfile();
+ document.getElementById('mobileTitle').textContent=v[0].toUpperCase()+v.slice(1);
+}
+function detail(c){
+ details.innerHTML=`<div class="detailtop">${A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}<h2>${c.name}</h2><div class="handle">${c.handle}</div><p>${c.desc||''}</p><div class="detailactions">${c.kind==='public'?`<button class="outline" id="join">${c.joined?'Joined':'Join'}</button>`:`<button class="outline">Message</button>`}</div></div>
+ <div class="detaillist">${c.kind!=='direct'?`<button class="detailrow"><span class="icon">${svg('users')}</span><span>Members</span><small>${c.subtitle}</small></button>`:''}<button class="detailrow"><span class="icon">${svg('image')}</span><span>Media</span><small>24</small></button><button class="detailrow"><span class="icon">${svg('link')}</span><span>Links</span><small>12</small></button><button class="detailrow"><span class="icon">${svg('file')}</span><span>Files</span><small>7</small></button></div>`;
+ let j=document.getElementById('join');if(j)j.onclick=()=>{c.joined=!c.joined;j.textContent=c.joined?'Joined':'Join';toast(c.joined?'Joined public':'Left public')};
+}
+function msg(m){return `<article class="msg ${m.own?'own':''}">${A(m.i,m.own?'dark':'')}<div><div class="author"><strong>${m.a}</strong><time>${m.t}</time></div><div class="bubble">${esc(m.x)}</div><div class="msgactions"><button class="react">♡</button><button class="react">+1</button><button class="react">Reply</button></div></div></article>`}
+function renderChat(c){
+ chat.innerHTML=`<header class="chathead">${A(c.initials,c.kind!=='direct'?'square'+(c.kind==='public'?' dark':''):'')}<div class="chatname"><strong>${c.name}</strong><span>${c.subtitle}</span></div><div class="chatactions">${c.kind==='direct'?`<button class="iconbtn"><span class="icon">${svg('phone')}</span></button>`:''}<button class="iconbtn"><span class="icon">${svg('search')}</span></button><button class="iconbtn"><span class="icon">${svg('more')}</span></button></div></header>
+ <section class="messages" id="messages"><div class="day">Today</div>${(c.messages||[]).map(msg).join('')}</section>
+ <footer class="composer"><button class="iconbtn"><span class="icon">${svg('paperclip')}</span></button><textarea id="input" placeholder="Message ${esc(c.name)}"></textarea><button class="send" id="send"><span class="icon">${svg('send')}</span></button></footer>`;
+ let input=document.getElementById('input'),send=document.getElementById('send');
+ const go=()=>{let x=input.value.trim();if(!x)return;c.messages.push({a:me.name,i:me.initials,t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),x,own:1});c.preview=x;c.time='now';renderChat(c);renderList();setTimeout(()=>{let m=document.getElementById('messages');m.scrollTop=m.scrollHeight},0)};
+ send.onclick=go;input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go()}};
+ chat.querySelectorAll('.react').forEach(b=>b.onclick=()=>b.classList.toggle('active'));
+}
+function renderPublic(c){
+ chat.innerHTML=`<header class="chathead">${A(c.initials,'square dark')}<div class="chatname"><strong>${c.name}</strong><span>${c.subtitle}</span></div><div class="chatactions"><button class="iconbtn"><span class="icon">${svg('search')}</span></button><button class="iconbtn"><span class="icon">${svg('more')}</span></button></div></header>
+ <section class="messages"><div class="day">Hybrid public</div>${c.posts.map(p=>`<article class="publicpost"><div class="pubhead">${A(c.initials,'square dark')}<strong>${c.name}</strong><time>${p.t}</time></div><div class="pubbody">${esc(p.x)}</div><div class="pubfoot"><button class="metric">♡ ${p.l}</button><button class="metric discuss">${p.r} replies</button><button class="metric">Share</button></div></article>`).join('')}</section>
+ <footer class="composer"><button class="iconbtn"><span class="icon">${svg('paperclip')}</span></button><textarea placeholder="Write to the discussion…"></textarea><button class="send"><span class="icon">${svg('send')}</span></button></footer>`;
+ chat.querySelectorAll('.discuss').forEach(b=>b.onclick=()=>toast('Discussion thread would open here'));
+}
+function openConv(id){
+ let c=data.find(x=>x.id===id);if(!c)return;active=id;c.unread=0;if(c.kind==='public'&&c.mode==='hybrid')renderPublic(c);else renderChat(c);detail(c);renderList();document.body.classList.add('chatopen');document.getElementById('mobileTitle').textContent=c.name;
+ setTimeout(()=>{let m=document.getElementById('messages');if(m)m.scrollTop=m.scrollHeight},0);
+}
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>nav(b.dataset.view));
+document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));renderList()});
+document.getElementById('search').oninput=e=>{query=e.target.value;if(view==='chats')renderList()};
+document.getElementById('focusSearch').onclick=()=>document.getElementById('search').focus();
+document.getElementById('settings').onclick=()=>toast('Settings would open here');
 
-        <fieldset class="mode-field">
-          <legend>Mode</legend>
-          <label><input type="radio" name="publicMode" value="broadcast" /> <span><strong>Broadcast</strong><small>Only admins publish.</small></span></label>
-          <label><input type="radio" name="publicMode" value="community" /> <span><strong>Community</strong><small>Everyone can talk.</small></span></label>
-          <label><input type="radio" name="publicMode" value="hybrid" checked /> <span><strong>Hybrid</strong><small>Admin posts with discussions.</small></span></label>
-        </fieldset>
-
-        <fieldset class="mode-field">
-          <legend>Visibility</legend>
-          <label><input type="radio" name="publicVisibility" value="public" checked /> <span><strong>Public</strong><small>Anyone can discover it.</small></span></label>
-          <label><input type="radio" name="publicVisibility" value="private" /> <span><strong>Private</strong><small>Invite only.</small></span></label>
-        </fieldset>
-      </div>
-    </section>
-  </div>
-
-  <!-- SEGMENT 8: TOASTS -->
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-
-  <script src="app.js"></script>
+const pop=document.getElementById('popover');
+function togglePop(anchor){let r=anchor.getBoundingClientRect();pop.hidden=!pop.hidden;if(!pop.hidden){pop.style.top=(r.bottom+6)+'px';pop.style.left=Math.max(10,r.right-190)+'px'}}
+document.getElementById('createBtn').onclick=e=>{e.stopPropagation();togglePop(e.currentTarget)};
+document.getElementById('mobileCreate').onclick=e=>{e.stopPropagation();togglePop(e.currentTarget)};
+document.addEventListener('click',e=>{if(!e.target.closest('#popover')&&!e.target.closest('#createBtn')&&!e.target.closest('#mobileCreate'))pop.hidden=true});
+pop.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>{pop.hidden=true;if(b.dataset.create==='public'){document.getElementById('modal').hidden=false;document.getElementById('pubName').focus()}else if(b.dataset.create==='group')toast('Group creator would open here');else nav('contacts')});
+document.getElementById('closeModal').onclick=()=>document.getElementById('modal').hidden=true;
+document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')e.currentTarget.hidden=true};
+document.getElementById('savePublic').onclick=()=>{
+ let n=document.getElementById('pubName').value.trim(),a=document.getElementById('pubAddress').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,''),d=document.getElementById('pubDesc').value.trim(),m=document.querySelector('[name=mode]:checked').value;
+ if(!n||!a)return toast('Add a name and address');
+ let id='pub'+Date.now(),c={id,kind:'public',mode:m,name:'/'+a,handle:'mi.net/'+a,initials:n.slice(0,2).toUpperCase(),preview:'Public created',time:'now',unread:0,subtitle:'1 member',desc:d||n,joined:1};
+ if(m==='hybrid')c.posts=[{t:'now',x:'Welcome to '+n+'.',r:0,l:0}];else c.messages=[{a:me.name,i:me.initials,t:'now',x:'Welcome to '+n+'.',own:1}];
+ data.unshift(c);document.getElementById('modal').hidden=true;nav('chats');openConv(id);toast('Public created');
+};
+document.getElementById('back').onclick=()=>{document.body.classList.remove('chatopen');document.getElementById('mobileTitle').textContent='Chats'};
+icons();nav('chats');openConv('alex');
+</script>
 </body>
 </html>

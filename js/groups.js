@@ -96,7 +96,20 @@ async function miListGroupMembers(c){
     return {ok:false,members:[],message:error.message||'Could not load group members.'};
   }
 
-  return {ok:true,members:data||[]};
+  const members=data||[];
+
+  if(typeof miPresenceHydrateProfiles==='function'){
+    await miPresenceHydrateProfiles(members.map(member=>member.user_id));
+
+    for(const member of members){
+      member.status_text=
+        typeof miGetUserStatusText==='function'
+          ?miGetUserStatusText(member.user_id)
+          :'';
+    }
+  }
+
+  return {ok:true,members};
 }
 
 async function miAddRemoteGroupMember(c,userId){
@@ -404,10 +417,17 @@ async function miRenderGroupMembersManager(){
       const options=miGroupActionOptions(c,member);
 
       return `<article class="group-member-row ${miGroupMemberStatusClass(member)}">
-       ${A(initials(name))}
+       ${typeof miPresenceAvatar==='function'
+        ?miPresenceAvatar(initials(name),member.user_id)
+        :A(initials(name))}
        <div class="group-member-copy">
         <strong>${esc(name)}${member.is_me?' <span class="group-you">you</span>':''}</strong>
         <small>@${esc(member.username)}</small>
+        <span
+         class="presence-line group-member-presence ${typeof miIsUserOnline==='function'&&miIsUserOnline(member.user_id)?'is-online':'is-offline'}"
+         data-presence-user="${member.user_id}"
+         data-status-text="${esc(member.status_text||'')}"
+        ><span data-presence-text>${esc(typeof miPresenceSubtitle==='function'?miPresenceSubtitle(member.user_id,member.status_text||''):'Offline')}</span></span>
        </div>
        <span class="group-role-pill">${esc(status)}</span>
        ${options.length?`<button class="iconbtn group-member-more" data-group-member-more="${member.user_id}" title="Manage">${svg('more')}</button>`:'<span></span>'}

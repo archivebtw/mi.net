@@ -30,7 +30,9 @@ function sortedConversations(items){
 function renderConversationRows(items){
  return sortedConversations(items).map(c=>`
  <button class="conv ${c.id===active?'active':''} ${isPinnedConversation(c.id)?'pinned':''}" data-conv="${c.id}">
- ${A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}
+ ${c.kind==='direct'&&c.remoteUserId&&typeof miPresenceAvatar==='function'
+  ?miPresenceAvatar(c.initials,c.remoteUserId,'')
+  :A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}
  <div class="convmain">
   <div class="convtitle"><strong>${esc(c.name)}</strong>
    <span class="type">${isPinnedConversation(c.id)?'pinned · ':''}${state.muted.includes(c.id)?'muted · ':''}${c.kind==='direct'?'':c.kind==='group'?'group':c.mode}</span>
@@ -288,7 +290,8 @@ function profileToDirectPerson(profile){
   handle:'@'+profile.username,
   initials:initials(name),
   status:'mi.net user',
-  bio:profile.bio||''
+  bio:profile.bio||'',
+  statusText:profile.status_text||''
  };
 }
 
@@ -326,10 +329,17 @@ async function renderContactResults(searchTerm=''){
   const person=profileToDirectPerson(profile);
 
   return `<button class="contact-directory-row" data-contact-profile="${profile.id}">
-   ${A(person.initials)}
+   ${typeof miPresenceAvatar==='function'
+    ?miPresenceAvatar(person.initials,profile.id)
+    :A(person.initials)}
    <div class="copy">
     <strong>${esc(person.name)}</strong>
     <small>${esc(person.handle)}${person.bio?' · '+esc(person.bio):''}</small>
+    <span
+     class="presence-line contact-presence ${typeof miIsUserOnline==='function'&&miIsUserOnline(profile.id)?'is-online':'is-offline'}"
+     data-presence-user="${profile.id}"
+     data-status-text="${esc(profile.status_text||'')}"
+    ><span data-presence-text>${esc(typeof miPresenceSubtitle==='function'?miPresenceSubtitle(profile.id,profile.status_text||''):'Offline')}</span></span>
    </div>
    <span class="contact-message-action">${svg('message')}</span>
   </button>`;
@@ -406,7 +416,7 @@ function renderProfile(){
   publics:state.conversations.filter(c=>c.kind==='public').length
  };
  list.innerHTML=`<div class="page"><div class="pagehead"><h2>Profile</h2><p>Your identity on mi.net.</p></div>
- <div class="profilecard">${A(m.initials,'dark')}<h2>${esc(m.name)}</h2><div class="handle">${esc(m.handle)}</div><p>${esc(m.bio)}</p><button class="outline" id="editProfileBtn">Edit profile</button></div>
+ <div class="profilecard">${A(m.initials,'dark')}<h2>${esc(m.name)}</h2><div class="handle">${esc(m.handle)}</div>${m.statusText?`<p class="profile-status">${esc(m.statusText)}</p>`:''}<span class="presence-line profile-presence is-online"><span data-presence-text>Online</span></span><p>${esc(m.bio)}</p><button class="outline" id="editProfileBtn">Edit profile</button></div>
  <div class="profile-stats"><div><strong>${stats.chats}</strong><span>Direct</span></div><div><strong>${stats.groups}</strong><span>Groups</span></div><div><strong>${stats.publics}</strong><span>Publics</span></div></div>
  <div class="account-panel">
   <div class="account-panel__row"><div><strong>Supabase account</strong><small>${esc(typeof miAuthUserEmail==='function'?miAuthUserEmail():'')}</small></div><span class="type">connected</span></div>

@@ -9,9 +9,18 @@ function detail(c){
   :(c.handle||'');
 
  details.innerHTML=`<div class="detailtop">
- ${A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}
+ ${c.kind==='direct'&&c.remoteUserId&&typeof miPresenceAvatar==='function'
+  ?miPresenceAvatar(c.initials,c.remoteUserId,'')
+  :A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}
  <h2>${esc(c.name)}</h2>
  <div class="handle">${esc(groupMeta)}</div>
+ ${c.kind==='direct'&&c.remoteUserId
+  ?`<span
+     class="presence-line detail-presence ${typeof miIsUserOnline==='function'&&miIsUserOnline(c.remoteUserId)?'is-online':'is-offline'}"
+     data-presence-user="${c.remoteUserId}"
+     data-status-text="${esc(c.statusText||'')}"
+    ><span data-presence-text>${esc(typeof miPresenceSubtitle==='function'?miPresenceSubtitle(c.remoteUserId,c.statusText||''):'Offline')}</span></span>`
+  :''}
  <p>${esc(c.desc||'')}</p>
  <div class="detailactions">
   ${c.kind==='public'
@@ -269,7 +278,13 @@ function composerHtml(c,placeholder){
 function renderChat(c){
  const q=chatSearchQuery.trim().toLowerCase();
  const msgs=(c.messages||[]).filter(m=>!q||`${m.a} ${m.x||''} ${m.file?.name||''}`.toLowerCase().includes(q));
- chat.innerHTML=`<header class="chathead">${A(c.initials,c.kind!=='direct'?'square'+(c.kind==='public'?' dark':''):'')}<div class="chatname"><strong>${esc(c.name)}</strong><span>${esc(c.subtitle||'')}</span></div><div class="chatactions">${c.kind==='direct'?`<button class="iconbtn" id="callBtn" title="Call"><span class="icon">${svg('phone')}</span></button>`:''}<button class="iconbtn" id="chatSearchBtn" title="Search"><span class="icon">${svg('search')}</span></button><button class="iconbtn" id="chatMoreBtn" title="More"><span class="icon">${svg('more')}</span></button></div></header>
+ const headerAvatar=c.kind==='direct'&&c.remoteUserId&&typeof miPresenceAvatar==='function'
+  ?miPresenceAvatar(c.initials,c.remoteUserId)
+  :A(c.initials,c.kind!=='direct'?'square'+(c.kind==='public'?' dark':''):'');
+ const headerSubtitle=c.kind==='direct'&&c.remoteUserId&&typeof miPresenceSubtitle==='function'
+  ?miPresenceSubtitle(c.remoteUserId,c.statusText||'')
+  :(c.subtitle||'');
+ chat.innerHTML=`<header class="chathead">${headerAvatar}<div class="chatname"><strong>${esc(c.name)}</strong><span data-presence-user="${c.kind==='direct'&&c.remoteUserId?c.remoteUserId:''}" data-status-text="${esc(c.statusText||'')}" class="${c.kind==='direct'&&c.remoteUserId?'chat-presence-subtitle':''}"><span data-presence-text>${esc(headerSubtitle)}</span></span></div><div class="chatactions">${c.kind==='direct'?`<button class="iconbtn" id="callBtn" title="Call"><span class="icon">${svg('phone')}</span></button>`:''}<button class="iconbtn" id="chatSearchBtn" title="Search"><span class="icon">${svg('search')}</span></button><button class="iconbtn" id="chatMoreBtn" title="More"><span class="icon">${svg('more')}</span></button></div></header>
  ${chatSearchOpen?`<div class="chatsearch"><input id="chatSearchInput" value="${esc(chatSearchQuery)}" placeholder="Search in ${esc(c.name)}"><button class="iconbtn" id="closeChatSearch">${svg('x')}</button></div>`:''}
  ${pinnedBannerHtml(c)}
  <section class="messages" id="messages"><div class="message-stream"><div class="day">${c.remoteLoading?'Syncing…':q?`${msgs.length} result${msgs.length===1?'':'s'}`:'Today'}</div>${msgs.length?msgs.map(msg).join(''):`<div class="empty"><p>No matching messages.</p></div>`}</div></section>

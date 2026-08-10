@@ -4,7 +4,8 @@ function initialState(){
    name:'mi.net user',
    handle:'@user',
    initials:'MI',
-   bio:''
+   bio:'',
+   statusText:''
   },
   settings:{dark:true,compact:false},
   muted:[],

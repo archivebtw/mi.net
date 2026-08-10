@@ -1,0 +1,131 @@
+/* =========================================================
+   mi.net v11 — Presence / custom status
+   ========================================================= */
+
+.presence-avatar {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+}
+
+.presence-avatar > .avatar {
+  grid-area: 1 / 1;
+}
+
+.presence-dot {
+  position: absolute;
+  right: -1px;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background var(--ease), transform var(--ease);
+}
+
+.presence-dot.is-online {
+  background: #32c98a;
+  transform: scale(1);
+}
+
+.presence-dot.is-offline {
+  background: #777783;
+  transform: scale(.9);
+}
+
+.presence-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.presence-line::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: #777783;
+}
+
+.presence-line.is-online::before {
+  background: #32c98a;
+}
+
+.presence-line.is-online [data-presence-text] {
+  color: #65d8ae;
+}
+
+.profile-status {
+  margin: 7px auto 0 !important;
+  color: var(--accent-2) !important;
+  font-size: 9px !important;
+}
+
+.profile-presence {
+  margin-top: 6px;
+  justify-content: center;
+}
+
+.detail-presence {
+  margin-top: 6px;
+  justify-content: center;
+}
+
+.contact-presence {
+  margin-top: 3px;
+}
+
+.group-member-presence {
+  margin-top: 3px;
+}
+
+.field-status-counter {
+  display: flex;
+  justify-content: flex-end;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.status-preview {
+  min-height: 38px;
+  margin-top: -4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.status-preview::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #32c98a;
+}
+
+@media(max-width:760px){
+  .presence-dot {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+
+.chat-presence-subtitle {
+  color: var(--muted);
+}
+
+.chat-presence-subtitle.is-online [data-presence-text] {
+  color: #65d8ae;
+}

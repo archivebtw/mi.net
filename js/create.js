@@ -12,7 +12,8 @@ function directProfileToPerson(profile){
   handle:'@'+profile.username,
   initials:initials(name),
   status:'mi.net user',
-  bio:profile.bio||''
+  bio:profile.bio||'',
+  statusText:profile.status_text||''
  };
 }
 
@@ -65,10 +66,17 @@ async function renderDirectContacts(){
  target.innerHTML=result.profiles.map(profile=>{
   const person=directProfileToPerson(profile);
   return `<button class="direct-profile-result" data-direct-profile="${profile.id}">
-   ${A(person.initials)}
+   ${typeof miPresenceAvatar==='function'
+    ?miPresenceAvatar(person.initials,profile.id)
+    :A(person.initials)}
    <div class="copy">
     <strong>${esc(person.name)}</strong>
     <small>${esc(person.handle)}${person.bio?' · '+esc(person.bio):''}</small>
+    <span
+     class="presence-line contact-presence ${typeof miIsUserOnline==='function'&&miIsUserOnline(profile.id)?'is-online':'is-offline'}"
+     data-presence-user="${profile.id}"
+     data-status-text="${esc(profile.status_text||'')}"
+    ><span data-presence-text>${esc(typeof miPresenceSubtitle==='function'?miPresenceSubtitle(profile.id,profile.status_text||''):'Offline')}</span></span>
    </div>
    <span class="direct-profile-action">${svg('message')}</span>
   </button>`;
@@ -308,6 +316,22 @@ function openProfileEditor(){
  document.getElementById('profileHandle').value=state.me.handle;
  document.getElementById('profileBio').value=state.me.bio;
 
+ const statusInput=document.getElementById('profileStatus');
+ const statusCounter=document.getElementById('profileStatusCounter');
+ const statusPreview=document.getElementById('profileStatusPreview');
+
+ statusInput.value=state.me.statusText||'';
+
+ const refreshStatusPreview=()=>{
+  const value=statusInput.value.slice(0,80);
+  statusInput.value=value;
+  statusCounter.textContent=`${value.length} / 80`;
+  statusPreview.textContent=value||'Your status will be visible to other mi.net users.';
+ };
+
+ statusInput.oninput=refreshStatusPreview;
+ refreshStatusPreview();
+
  const handleInput=document.getElementById('profileHandle');
 
  // Username input is explicitly configured for an English/ASCII handle.
@@ -341,11 +365,14 @@ document.getElementById('saveProfile').onclick=async()=>{
  button.textContent='Saving…';
 
  const bio=document.getElementById('profileBio').value.trim();
+ const statusText=document.getElementById('profileStatus').value.trim().slice(0,80);
+
  const remote=typeof miSaveRemoteProfile==='function'
   ?await miSaveRemoteProfile({
     displayName:name,
     username:usernameResult.value.replace(/^@/,''),
-    bio
+    bio,
+    statusText
    })
   :{ok:true};
 
@@ -360,10 +387,29 @@ document.getElementById('saveProfile').onclick=async()=>{
  state.me.name=name;
  state.me.handle=usernameResult.value;
  state.me.bio=bio;
+ state.me.statusText=statusText;
  state.me.initials=initials(name);
  document.getElementById('profileOrb').textContent=state.me.initials;
 
+ if(typeof miPresenceHydrateProfiles==='function'&&typeof miGetAuthUser==='function'){
+  const me=miGetAuthUser();
+  if(me?.id&&typeof miPresence!=='undefined'){
+   miPresence.profileCache.set(String(me.id),{
+    id:me.id,
+    username:usernameResult.value.replace(/^@/,''),
+    display_name:name,
+    bio,
+    status_text:statusText
+   });
+  }
+ }
+
  persist();
+
+ if(typeof miPresenceUpdateStatus==='function'){
+  await miPresenceUpdateStatus();
+ }
+
  closeModal('profileModal');
  if(view==='profile')renderProfile();
  toast('Profile saved');

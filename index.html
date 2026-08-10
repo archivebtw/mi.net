@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0b0e">
-<meta name="mi-net-build" content="clean-server-inbox-v10">
+<meta name="mi-net-build" content="presence-signup-stability-v11">
 <title>mi.net — talk. gather. create.</title>
 
 <link rel="stylesheet" href="css/base.css">
@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/overlays.css?v=20260810-4">
 <link rel="stylesheet" href="css/groups.css?v=20260810-9">
 <link rel="stylesheet" href="css/onboarding.css?v=20260810-10">
+<link rel="stylesheet" href="css/presence.css?v=20260810-11">
 <link rel="stylesheet" href="css/loader.css">
 <link rel="stylesheet" href="css/auth.css?v=20260810-8">
 <link rel="stylesheet" href="css/responsive.css">
@@ -254,6 +255,12 @@
 <div class="modalbody">
 <label class="field"><span>Name</span><input id="profileName"></label>
 <label class="field"><span>Username</span><input id="profileHandle"></label>
+<label class="field">
+ <span>Status</span>
+ <input id="profileStatus" maxlength="80" placeholder="What are you up to?">
+ <small class="field-status-counter" id="profileStatusCounter">0 / 80</small>
+</label>
+<div class="status-preview" id="profileStatusPreview">Your status will be visible to other mi.net users.</div>
 <label class="field"><span>Bio</span><textarea id="profileBio"></textarea></label>
 </div></section>
 </div>
@@ -294,17 +301,18 @@
 <script src="js/supabase-config.js?v=20260810-3"></script>
 <script src="js/loader.js"></script>
 <script src="js/icons.js"></script>
-<script src="js/data.js?v=20260810-10"></script>
+<script src="js/data.js?v=20260810-11"></script>
 <script src="js/state.js?v=20260810-10"></script>
 <script src="js/media.js"></script>
-<script src="js/realtime.js?v=20260810-10"></script>
-<script src="js/groups.js?v=20260810-9"></script>
-<script src="js/navigation.js?v=20260810-10"></script>
-<script src="js/chat.js?v=20260810-9"></script>
+<script src="js/realtime.js?v=20260810-11"></script>
+<script src="js/groups.js?v=20260810-11"></script>
+<script src="js/presence.js?v=20260810-11"></script>
+<script src="js/navigation.js?v=20260810-11"></script>
+<script src="js/chat.js?v=20260810-11"></script>
 <script src="js/features.js"></script>
 <script src="js/moderation.js"></script>
-<script src="js/create.js?v=20260810-9"></script>
+<script src="js/create.js?v=20260810-11"></script>
 <script src="js/app.js?v=20260810-5"></script>
-<script src="js/auth.js?v=20260810-8"></script>
+<script src="js/auth.js?v=20260810-11"></script>
 </body>
 </html>

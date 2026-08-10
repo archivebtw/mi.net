@@ -1,4 +1,4 @@
-// mi.net auth build: 2026-08-10-v8-email-only
+// mi.net auth build: 2026-08-10-v11-presence-signup-stability
 // Supabase authentication and profile synchronization for mi.net.
 const miAuth = {
   client: null,
@@ -225,9 +225,10 @@ function miFriendlyAuthError(error){
   if(/invalid login credentials/i.test(message))return 'Incorrect email or password.';
   if(/email not confirmed/i.test(message))return 'Confirm your email before signing in.';
   if(/user already registered/i.test(message))return 'An account with this email already exists.';
+  if(/email rate limit exceeded|rate limit.*email/i.test(message))return 'Too many confirmation emails were requested. Wait a little and try again.';
   if(/duplicate key|unique constraint|profiles_username_lower_unique/i.test(message))return 'This username is already taken.';
   if(/username is not allowed|profiles_username_allowed|check constraint/i.test(message))return 'This username is not allowed.';
-  if(/database error saving new user/i.test(message))return 'Could not create the account. The username may already be taken/blocked, or the Supabase profile trigger is not installed correctly.';
+  if(/database error saving new user/i.test(message))return 'Registration database error. Apply the latest mi.net signup SQL fix and try again.';
   if(/duplicate key|unique/i.test(message))return 'This username is already taken.';
   if(/password/i.test(message)&&/short|least|characters/i.test(message))return 'Password must be at least 8 characters.';
   return message;
@@ -236,7 +237,7 @@ function miFriendlyAuthError(error){
 async function miFetchProfile(userId){
   const {data,error}=await miAuth.client
     .from('profiles')
-    .select('id, username, display_name, bio, avatar_url, created_at, updated_at')
+    .select('id, username, display_name, bio, avatar_url, status_text, created_at, updated_at')
     .eq('id',userId)
     .single();
 
@@ -249,10 +250,12 @@ function miApplyProfile(profile,user){
   const name=profile?.display_name||metadata.display_name||metadata.name||'mi.net user';
   const username=profile?.username||metadata.username||('user_'+String(user?.id||'').slice(0,8));
   const bio=profile?.bio||'';
+  const statusText=profile?.status_text||'';
 
   state.me.name=name;
   state.me.handle='@'+String(username).replace(/^@/,'');
   state.me.bio=bio;
+  state.me.statusText=statusText;
   state.me.initials=initials(name);
   persist();
 
@@ -290,40 +293,54 @@ async function miEstablishSession(session){
     await window.miRealtimeStart();
   }
 
+  if(typeof window.miPresenceStart==='function'){
+    await window.miPresenceStart();
+  }
+
   return true;
 }
 
 async function miCheckUsernameAvailability(username){
   if(!miAuth.client){
-    return {available:null,degraded:true,message:'Supabase is not connected.'};
-  }
-
-  const candidate=username.replace(/^@/,'');
-
-  const {data,error}=await miAuth.client.rpc('is_username_available',{candidate});
-
-  if(error){
-    console.error('mi.net username RPC failed', {
-      message:error.message,
-      code:error.code,
-      details:error.details,
-      hint:error.hint
-    });
-
-    // Availability is a UX pre-check only.
-    // The database still enforces username rules atomically on signup/update.
     return {
       available:null,
       degraded:true,
-      code:error.code||'rpc-error',
+      message:'Supabase is not connected.'
+    };
+  }
+
+  const candidate=String(username||'').replace(/^@/,'');
+
+  const {data,error}=await miAuth.client.rpc(
+    'check_registration_username',
+    {candidate}
+  );
+
+  if(error){
+    console.error('mi.net registration username preflight failed',error);
+
+    // Signup can still proceed because the database trigger is defensive.
+    return {
+      available:null,
+      degraded:true,
       message:'Username pre-check is temporarily unavailable.'
     };
   }
 
+  const available=Boolean(data?.available);
+  let message='';
+
+  if(!available){
+    message=data?.reason==='taken'
+      ?'This username is already taken.'
+      :'This username is not allowed.';
+  }
+
   return {
-    available:Boolean(data),
+    available,
     degraded:false,
-    message:data?'':'This username is already taken or not allowed.'
+    reason:data?.reason||null,
+    message
   };
 }
 
@@ -341,7 +358,7 @@ async function miSearchProfiles(searchTerm='',limit=12){
   }
 
   const term=miSanitizeProfileSearch(searchTerm);
-  const columns='id, username, display_name, bio, avatar_url, updated_at';
+  const columns='id, username, display_name, bio, avatar_url, status_text, updated_at';
 
   try{
     if(!term){
@@ -407,7 +424,7 @@ async function miSearchProfiles(searchTerm='',limit=12){
   }
 }
 
-async function miSaveRemoteProfile({displayName,username,bio}){
+async function miSaveRemoteProfile({displayName,username,bio,statusText=''}){
   if(!miAuth.client||!miAuth.user)return {ok:false,message:'You are not signed in.'};
 
   const usernameCheck=miCheckUsername(username);
@@ -421,10 +438,12 @@ async function miSaveRemoteProfile({displayName,username,bio}){
     .update({
       username,
       display_name:displayName,
-      bio
+      bio,
+      status_text:String(statusText||'').trim().slice(0,80),
+      updated_at:new Date().toISOString()
     })
     .eq('id',miAuth.user.id)
-    .select('id, username, display_name, bio, avatar_url, created_at, updated_at')
+    .select('id, username, display_name, bio, avatar_url, status_text, created_at, updated_at')
     .single();
 
   if(error)return {ok:false,message:miFormatUnexpectedAuthError(error)};
@@ -444,6 +463,10 @@ async function miSaveRemoteProfile({displayName,username,bio}){
 
 async function miSignOut(){
   if(!miAuth.client)return;
+
+  if(typeof window.miPresenceStop==='function'){
+    await window.miPresenceStop();
+  }
 
   if(typeof window.miRealtimeStop==='function'){
     await window.miRealtimeStop();
@@ -512,12 +535,22 @@ async function miHandleSignUp(event){
 
   miSetAuthBusy(form,true);
 
-  // Registration no longer depends on the username availability RPC.
-  // PostgreSQL is authoritative: profiles_username_lower_unique,
-  // profiles_username_allowed and handle_new_user validate atomically.
   const username=usernameResult.value.replace(/^@/,'');
   usernameInput.classList.remove('auth-invalid');
   errorElement.hidden=true;
+  miAuthMessage('Checking username…');
+
+  const availability=await miCheckUsernameAvailability(username);
+
+  if(availability.available===false){
+    miSetAuthBusy(form,false);
+    usernameInput.classList.add('auth-invalid');
+    errorElement.textContent=availability.message;
+    errorElement.hidden=false;
+    miAuthMessage(availability.message,'error');
+    return;
+  }
+
   miAuthMessage('Creating account…');
 
   const {data,error}=await miAuth.client.auth.signUp({
@@ -689,6 +722,14 @@ async function miInitAuth(){
       }
 
       if(event==='SIGNED_OUT'){
+        if(typeof window.miPresenceStop==='function'){
+          await window.miPresenceStop();
+        }
+
+        if(typeof window.miRealtimeStop==='function'){
+          await window.miRealtimeStop();
+        }
+
         miAuth.session=null;
         miAuth.user=null;
         miAuth.profile=null;

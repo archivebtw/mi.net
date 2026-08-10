@@ -84,6 +84,7 @@ function miMergeRemoteConversation(row){
       unread:Number(row.unread_count||0),
       subtitle:'mi.net · realtime',
       desc:row.bio||'mi.net user',
+      statusText:'',
       messages:[],
       remoteMessagesLoaded:false,
       otherLastReadAt:row.other_last_read_at||null,
@@ -98,6 +99,7 @@ function miMergeRemoteConversation(row){
     c.handle='@'+row.username;
     c.initials=initials(name);
     c.desc=row.bio||c.desc||'mi.net user';
+    c.statusText=c.statusText||'';
     c.subtitle='mi.net · realtime';
     c.preview=preview;
     c.time=miFormatRemoteListTime(row.last_message_at);
@@ -252,6 +254,24 @@ async function miLoadRemoteConversations(){
     miMergeRemoteGroup(row);
   }
 
+  if(typeof miPresenceHydrateProfiles==='function'){
+    const directUserIds=(directResult.data||[])
+      .map(row=>row.other_user_id)
+      .filter(Boolean);
+
+    await miPresenceHydrateProfiles(directUserIds);
+
+    for(const row of directResult.data||[]){
+      const c=miFindRemoteConversation(row.conversation_id);
+      if(!c)continue;
+
+      c.statusText=
+        typeof miGetUserStatusText==='function'
+          ?miGetUserStatusText(row.other_user_id)
+          :'';
+    }
+  }
+
   state.conversations=state.conversations.filter(c=>
     !c.remoteConversationId||seen.has(c.remoteConversationId)
   );
@@ -307,6 +327,7 @@ async function miGetOrCreateRemoteDirect(person){
       unread:0,
       subtitle:'mi.net · realtime',
       desc:person.bio||'mi.net user',
+      statusText:person.statusText||'',
       messages:[],
       remoteMessagesLoaded:false,
       otherLastReadAt:null,

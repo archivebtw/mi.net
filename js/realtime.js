@@ -308,11 +308,21 @@ function miRecalculateRemoteReactionTotals(c){
 async function miLoadRemoteMessages(c){
   if(!miIsRemoteDirect(c))return {ok:false};
 
+  const scrollState=active===c.id&&typeof captureMessageScroll==='function'
+    ?captureMessageScroll()
+    :null;
+  const firstRemoteLoad=!c.remoteMessagesLoaded;
+
   const client=miSupabaseClient();
   if(!client)return {ok:false,message:'Supabase is not ready.'};
 
   c.remoteLoading=true;
-  if(active===c.id)renderChat(c);
+  if(active===c.id&&!c.remoteMessagesLoaded){
+    renderChat(c);
+    if(typeof restoreMessageScroll==='function'){
+      restoreMessageScroll(scrollState,{forceBottom:true});
+    }
+  }
 
   const [messageResult,reactionResult]=await Promise.all([
     client
@@ -360,7 +370,11 @@ async function miLoadRemoteMessages(c){
   if(active===c.id){
     renderChat(c);
     detail(c);
-    setTimeout(scrollBottom,0);
+    if(typeof restoreMessageScroll==='function'){
+      restoreMessageScroll(scrollState,{
+        forceBottom:firstRemoteLoad||Boolean(scrollState?.nearBottom)
+      });
+    }
   }
   if(view==='chats')renderList();
 
@@ -389,7 +403,15 @@ async function miRefreshRemoteReactions(c){
   miRecalculateRemoteReactionTotals(c);
   persist();
 
-  if(active===c.id)renderChat(c);
+  if(active===c.id){
+    const scrollState=typeof captureMessageScroll==='function'
+      ?captureMessageScroll()
+      :null;
+    renderChat(c);
+    if(typeof restoreMessageScroll==='function'){
+      restoreMessageScroll(scrollState);
+    }
+  }
 }
 
 async function miUploadRemoteAttachment(c,attachment){
@@ -430,6 +452,10 @@ async function miUploadRemoteAttachment(c,attachment){
 async function miUpsertRemoteLocalMessage(c,row,{incrementUnread=false}={}){
   if(!c||!row)return null;
 
+  const scrollState=active===c.id&&typeof captureMessageScroll==='function'
+    ?captureMessageScroll()
+    :null;
+
   const existingIndex=(c.messages||[]).findIndex(m=>m.id===row.id);
   const existing=existingIndex>=0?c.messages[existingIndex]:null;
   const mapped=await miRemoteMessageToLocal(row,c,[]);
@@ -458,7 +484,16 @@ async function miUpsertRemoteLocalMessage(c,row,{incrementUnread=false}={}){
 
   if(active===c.id){
     renderChat(c);
-    setTimeout(scrollBottom,0);
+
+    if(typeof restoreMessageScroll==='function'){
+      restoreMessageScroll(scrollState,{
+        // Own messages always stay attached to the bottom.
+        // Incoming messages auto-follow only if the user was already near bottom.
+        forceBottom:row.sender_id===me||Boolean(scrollState?.nearBottom),
+        smooth:row.sender_id!==me&&Boolean(scrollState?.nearBottom)
+      });
+    }
+
     if(row.sender_id!==me)miMarkRemoteRead(c);
   }
 
@@ -678,7 +713,15 @@ function miRefreshRemoteReadStatuses(c){
   }
 
   persist();
-  if(active===c.id)renderChat(c);
+  if(active===c.id){
+    const scrollState=typeof captureMessageScroll==='function'
+      ?captureMessageScroll()
+      :null;
+    renderChat(c);
+    if(typeof restoreMessageScroll==='function'){
+      restoreMessageScroll(scrollState);
+    }
+  }
 }
 
 async function miOpenRemoteConversation(c){
@@ -693,6 +736,10 @@ async function miHandleRemoteMessageEvent(payload){
   let c=row.conversation_id?miFindRemoteConversation(row.conversation_id):null;
 
   if(row.deleted_at){
+    const scrollState=active===c?.id&&typeof captureMessageScroll==='function'
+      ?captureMessageScroll()
+      :null;
+
     if(!c){
       c=state.conversations.find(item=>
         item.remoteConversationId&&
@@ -704,7 +751,12 @@ async function miHandleRemoteMessageEvent(payload){
     c.messages=(c.messages||[]).filter(m=>m.id!==row.id);
     c.preview=c.messages.at(-1)?.x||c.messages.at(-1)?.file?.name||'Message deleted';
     persist();
-    if(active===c.id)renderChat(c);
+    if(active===c.id){
+      renderChat(c);
+      if(typeof restoreMessageScroll==='function'){
+        restoreMessageScroll(scrollState);
+      }
+    }
     if(view==='chats')renderList();
     return;
   }

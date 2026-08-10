@@ -216,7 +216,7 @@ function renderChat(c){
  chat.innerHTML=`<header class="chathead">${A(c.initials,c.kind!=='direct'?'square'+(c.kind==='public'?' dark':''):'')}<div class="chatname"><strong>${esc(c.name)}</strong><span>${esc(c.subtitle||'')}</span></div><div class="chatactions">${c.kind==='direct'?`<button class="iconbtn" id="callBtn" title="Call"><span class="icon">${svg('phone')}</span></button>`:''}<button class="iconbtn" id="chatSearchBtn" title="Search"><span class="icon">${svg('search')}</span></button><button class="iconbtn" id="chatMoreBtn" title="More"><span class="icon">${svg('more')}</span></button></div></header>
  ${chatSearchOpen?`<div class="chatsearch"><input id="chatSearchInput" value="${esc(chatSearchQuery)}" placeholder="Search in ${esc(c.name)}"><button class="iconbtn" id="closeChatSearch">${svg('x')}</button></div>`:''}
  ${pinnedBannerHtml(c)}
- <section class="messages" id="messages"><div class="day">${c.remoteLoading?'Syncing…':q?`${msgs.length} result${msgs.length===1?'':'s'}`:'Today'}</div>${msgs.length?msgs.map(msg).join(''):`<div class="empty"><p>No matching messages.</p></div>`}</section>
+ <section class="messages" id="messages"><div class="message-stream"><div class="day">${c.remoteLoading?'Syncing…':q?`${msgs.length} result${msgs.length===1?'':'s'}`:'Today'}</div>${msgs.length?msgs.map(msg).join(''):`<div class="empty"><p>No matching messages.</p></div>`}</div></section>
  ${composerHtml(c,'Message '+c.name)}`;
  bindChat(c);
  miHydrateMediaElements(chat);
@@ -297,7 +297,7 @@ function bindChat(c){
    setDraft(c.id,'');
    renderChat(c);
    renderList();
-   setTimeout(scrollBottom,0);
+   setTimeout(()=>scrollBottom({smooth:true}),0);
    return;
   }
 
@@ -337,7 +337,7 @@ function bindChat(c){
   persist();
   renderChat(c);
   renderList();
-  setTimeout(scrollBottom,0);
+  setTimeout(()=>scrollBottom({smooth:true}),0);
 
   setTimeout(()=>{
    const latest=conv(c.id)?.messages?.find(item=>item.id===m.id);
@@ -660,9 +660,53 @@ function bindPublic(c){
   if(cancel)cancel.onclick=()=>{pendingAttachment=null;renderPublic(c)};
  }
 }
-function scrollBottom(){let m=document.getElementById('messages');if(m)m.scrollTop=m.scrollHeight}
+function messageScroller(){
+ const m=document.getElementById('messages');
+ return m&&m.isConnected?m:null;
+}
+
+function scrollBottom({smooth=false}={}){
+ const m=messageScroller();
+ if(!m)return;
+ const top=Math.max(0,m.scrollHeight-m.clientHeight);
+ if(typeof m.scrollTo==='function'){
+  m.scrollTo({top,behavior:smooth?'smooth':'auto'});
+ }else{
+  m.scrollTop=top;
+ }
+}
+
+function isNearMessageBottom(threshold=120){
+ const m=messageScroller();
+ if(!m)return true;
+ return m.scrollHeight-m.scrollTop-m.clientHeight<=threshold;
+}
+
+function captureMessageScroll(){
+ const m=messageScroller();
+ if(!m)return {nearBottom:true,bottomOffset:0};
+ return {
+  nearBottom:isNearMessageBottom(),
+  bottomOffset:m.scrollHeight-m.scrollTop
+ };
+}
+
+function restoreMessageScroll(snapshot,{forceBottom=false,smooth=false}={}){
+ requestAnimationFrame(()=>{
+  const m=messageScroller();
+  if(!m)return;
+
+  if(forceBottom||!snapshot||snapshot.nearBottom){
+   scrollBottom({smooth});
+   return;
+  }
+
+  // Preserve the same distance from the bottom after DOM replacement.
+  m.scrollTop=Math.max(0,m.scrollHeight-snapshot.bottomOffset);
+ });
+}
 function openConv(idv){
- let c=conv(idv);if(!c)return;active=idv;c.unread=0;chatSearchOpen=false;chatSearchQuery='';replyTarget=null;pendingAttachment=null;editTarget=null;renderConversation(c);detail(c);if(view==='chats')renderList();document.body.classList.add('chatopen');document.getElementById('mobileTitle').textContent=c.name;persist();setTimeout(scrollBottom,0);
+ let c=conv(idv);if(!c)return;active=idv;c.unread=0;chatSearchOpen=false;chatSearchQuery='';replyTarget=null;pendingAttachment=null;editTarget=null;renderConversation(c);detail(c);if(view==='chats')renderList();document.body.classList.add('chatopen');document.getElementById('mobileTitle').textContent=c.name;persist();setTimeout(()=>scrollBottom(),0);
  if(c.remoteConversationId&&typeof miOpenRemoteConversation==='function')miOpenRemoteConversation(c);
 }
 function toggleMute(c){const i=state.muted.indexOf(c.id);if(i>=0)state.muted.splice(i,1);else state.muted.push(c.id);persist();detail(c);if(view==='chats')renderList();toast(state.muted.includes(c.id)?'Notifications muted':'Notifications enabled')}

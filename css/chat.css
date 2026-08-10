@@ -731,3 +731,31 @@
 .realtime-direct-note{
   color:var(--accent-2);
 }
+
+
+/* =========================================================
+   Message history anchoring / scroll stability v2
+   ========================================================= */
+.messages {
+  overflow-anchor: none;
+  scroll-behavior: auto;
+}
+
+.message-stream {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 1px;
+}
+
+.message-stream > .day,
+.message-stream > .msg,
+.message-stream > .empty {
+  flex: 0 0 auto;
+}
+
+/* Browser anchoring is handled by JS so DOM replacement cannot jump. */
+.message-stream * {
+  overflow-anchor: none;
+}

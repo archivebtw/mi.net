@@ -73,7 +73,7 @@ function openProfileEditor(){
  validateProfileUsername();
  openModal('profileModal');
 }
-document.getElementById('saveProfile').onclick=()=>{
+document.getElementById('saveProfile').onclick=async()=>{
  const name=document.getElementById('profileName').value.trim();
  if(!name)return toast('Name is required');
 
@@ -83,9 +83,31 @@ document.getElementById('saveProfile').onclick=()=>{
   return;
  }
 
+ const button=document.getElementById('saveProfile');
+ const originalText=button.textContent;
+ button.disabled=true;
+ button.textContent='Saving…';
+
+ const bio=document.getElementById('profileBio').value.trim();
+ const remote=typeof miSaveRemoteProfile==='function'
+  ?await miSaveRemoteProfile({
+    displayName:name,
+    username:usernameResult.value.replace(/^@/,''),
+    bio
+   })
+  :{ok:true};
+
+ button.disabled=false;
+ button.textContent=originalText;
+
+ if(!remote.ok){
+  toast(remote.message||'Could not save profile');
+  return;
+ }
+
  state.me.name=name;
  state.me.handle=usernameResult.value;
- state.me.bio=document.getElementById('profileBio').value.trim();
+ state.me.bio=bio;
  state.me.initials=initials(name);
  document.getElementById('profileOrb').textContent=state.me.initials;
 
@@ -99,4 +121,4 @@ function openSettings(){
 }
 document.getElementById('darkSwitch').onclick=e=>{state.settings.dark=!state.settings.dark;e.currentTarget.classList.toggle('on',state.settings.dark);applySettings();persist()};
 document.getElementById('compactSwitch').onclick=e=>{state.settings.compact=!state.settings.compact;e.currentTarget.classList.toggle('on',state.settings.compact);applySettings();persist()};
-document.getElementById('resetDemo').onclick=()=>{if(confirm('Reset the entire local demo?')){localStorage.removeItem('minet_state_v2');location.reload()}};
+document.getElementById('resetDemo').onclick=()=>{if(confirm('Reset local mi.net data for this account?')){miResetAuthenticatedLocalState();location.reload()}};

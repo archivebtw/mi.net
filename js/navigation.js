@@ -128,8 +128,14 @@ function renderProfile(){
  list.innerHTML=`<div class="page"><div class="pagehead"><h2>Profile</h2><p>Your identity on mi.net.</p></div>
  <div class="profilecard">${A(m.initials,'dark')}<h2>${esc(m.name)}</h2><div class="handle">${esc(m.handle)}</div><p>${esc(m.bio)}</p><button class="outline" id="editProfileBtn">Edit profile</button></div>
  <div class="profile-stats"><div><strong>${stats.chats}</strong><span>Direct</span></div><div><strong>${stats.groups}</strong><span>Groups</span></div><div><strong>${stats.publics}</strong><span>Publics</span></div></div>
+ <div class="account-panel">
+  <div class="account-panel__row"><div><strong>Supabase account</strong><small>${esc(typeof miAuthUserEmail==='function'?miAuthUserEmail():'')}</small></div><span class="type">connected</span></div>
+  <div class="account-panel__row"><div><strong>Session</strong><small>Account data is synced with Supabase.</small></div><button class="account-panel__logout" id="profileSignOut">Sign out</button></div>
+ </div>
  </div>`;
  document.getElementById('editProfileBtn').onclick=openProfileEditor;
+ const signOut=document.getElementById('profileSignOut');
+ if(signOut)signOut.onclick=()=>miSignOut();
 }
 
 function nav(v){

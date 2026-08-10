@@ -1,6 +1,8 @@
 // Persistent state, migration, runtime state and common UI helpers
+const MI_STATE_BASE_KEY='minet_state_v2';
+let miStateStorageKey=MI_STATE_BASE_KEY;
 let state;
-try{state=JSON.parse(localStorage.getItem('minet_state_v2'))||initialState()}catch(e){state=initialState()}
+try{state=JSON.parse(localStorage.getItem(miStateStorageKey))||initialState()}catch(e){state=initialState()}
 
 function migrateState(){
  state.me=state.me||initialState().me;
@@ -28,7 +30,38 @@ function migrateState(){
 }
 migrateState();
 
-function persist(){try{localStorage.setItem('minet_state_v2',JSON.stringify(state))}catch(e){}}
+function persist(){try{localStorage.setItem(miStateStorageKey,JSON.stringify(state))}catch(e){}}
+
+function miActivateAuthenticatedState(userId){
+ const nextKey=`${MI_STATE_BASE_KEY}:${userId}`;
+ let nextState=null;
+
+ try{
+  const userState=localStorage.getItem(nextKey);
+  if(userState){
+   nextState=JSON.parse(userState);
+  }else{
+   const legacy=localStorage.getItem(MI_STATE_BASE_KEY);
+   nextState=legacy?JSON.parse(legacy):initialState();
+  }
+ }catch(e){
+  nextState=initialState();
+ }
+
+ miStateStorageKey=nextKey;
+ state=nextState||initialState();
+ migrateState();
+ applySettings();
+ persist();
+}
+
+function miResetAuthenticatedLocalState(){
+ try{localStorage.removeItem(miStateStorageKey)}catch(e){}
+ state=initialState();
+ migrateState();
+ applySettings();
+ persist();
+}
 function applySettings(){
  document.body.classList.toggle('dark',!!state.settings.dark);
  document.body.classList.toggle('compact',!!state.settings.compact);

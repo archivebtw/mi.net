@@ -12,9 +12,10 @@
 <link rel="stylesheet" href="css/pages.css">
 <link rel="stylesheet" href="css/overlays.css">
 <link rel="stylesheet" href="css/loader.css">
+<link rel="stylesheet" href="css/auth.css">
 <link rel="stylesheet" href="css/responsive.css">
 </head>
-<body class="is-loading">
+<body class="is-loading auth-pending">
 
 <div class="site-loader" id="siteLoader" aria-label="Loading mi.net">
   <div class="site-loader__inner">
@@ -34,6 +35,121 @@
     </div>
   </div>
 </div>
+
+
+<section class="auth-gate" id="authGate" aria-live="polite">
+  <div class="auth-shell">
+    <header class="auth-brand">
+      <div class="auth-logo">mi</div>
+      <div>
+        <strong>mi.net</strong>
+        <span>talk. gather. create.</span>
+      </div>
+    </header>
+
+    <div class="auth-config-warning" id="authConfigWarning" hidden>
+      <strong>Connect Supabase</strong>
+      <p>Fill in <code>js/supabase-config.js</code> with your Project URL and publishable/anon key, then run <code>supabase/schema.sql</code> in Supabase SQL Editor.</p>
+    </div>
+
+    <div class="auth-card" id="authCard">
+      <div class="auth-tabs" id="authTabs">
+        <button class="auth-tab active" data-auth-view="signin">Sign in</button>
+        <button class="auth-tab" data-auth-view="signup">Create account</button>
+      </div>
+
+      <form class="auth-form" id="signInForm" autocomplete="on">
+        <div class="auth-heading">
+          <h1>Welcome back.</h1>
+          <p>Continue to your conversations and publics.</p>
+        </div>
+
+        <label class="auth-field">
+          <span>Email</span>
+          <input id="signInEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+        </label>
+
+        <label class="auth-field">
+          <span>Password</span>
+          <div class="auth-password-field">
+            <input id="signInPassword" type="password" autocomplete="current-password" required minlength="8" placeholder="Your password">
+            <button type="button" class="auth-password-toggle" data-password-toggle="signInPassword">Show</button>
+          </div>
+        </label>
+
+        <button class="auth-submit" type="submit" id="signInSubmit">Sign in</button>
+        <button class="auth-link-button" type="button" id="forgotPasswordBtn">Forgot password?</button>
+      </form>
+
+      <form class="auth-form" id="signUpForm" autocomplete="on" hidden>
+        <div class="auth-heading">
+          <h1>Create your mi.net.</h1>
+          <p>Your account and public profile are stored in Supabase.</p>
+        </div>
+
+        <label class="auth-field">
+          <span>Display name</span>
+          <input id="signUpName" autocomplete="name" maxlength="48" required placeholder="Your name">
+        </label>
+
+        <label class="auth-field">
+          <span>Username</span>
+          <div class="auth-username-field">
+            <span>@</span>
+            <input id="signUpUsername" autocomplete="username" autocapitalize="none" spellcheck="false" lang="en" maxlength="24" required placeholder="username">
+          </div>
+          <small class="auth-field-error" id="signUpUsernameError" hidden></small>
+        </label>
+
+        <label class="auth-field">
+          <span>Email</span>
+          <input id="signUpEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+        </label>
+
+        <label class="auth-field">
+          <span>Password</span>
+          <div class="auth-password-field">
+            <input id="signUpPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+            <button type="button" class="auth-password-toggle" data-password-toggle="signUpPassword">Show</button>
+          </div>
+        </label>
+
+        <button class="auth-submit" type="submit" id="signUpSubmit">Create account</button>
+        <p class="auth-legal">By creating an account you agree to follow the mi.net community rules.</p>
+      </form>
+
+      <form class="auth-form" id="forgotForm" hidden>
+        <button class="auth-back" type="button" data-auth-view="signin">← Back to sign in</button>
+        <div class="auth-heading">
+          <h1>Reset password.</h1>
+          <p>We’ll send a recovery link to your email.</p>
+        </div>
+        <label class="auth-field">
+          <span>Email</span>
+          <input id="forgotEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+        </label>
+        <button class="auth-submit" type="submit">Send recovery link</button>
+      </form>
+
+      <form class="auth-form" id="recoveryForm" hidden>
+        <div class="auth-heading">
+          <h1>Choose a new password.</h1>
+          <p>Your recovery session is active.</p>
+        </div>
+        <label class="auth-field">
+          <span>New password</span>
+          <div class="auth-password-field">
+            <input id="recoveryPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+            <button type="button" class="auth-password-toggle" data-password-toggle="recoveryPassword">Show</button>
+          </div>
+        </label>
+        <button class="auth-submit" type="submit">Update password</button>
+      </form>
+
+      <div class="auth-message" id="authMessage" hidden></div>
+    </div>
+  </div>
+</section>
 
 <div class="app">
   <aside class="rail">
@@ -171,6 +287,8 @@
 
 <div class="toastbox" id="toasts"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
 <script src="js/loader.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/data.js"></script>
@@ -182,5 +300,6 @@
 <script src="js/moderation.js"></script>
 <script src="js/create.js"></script>
 <script src="js/app.js"></script>
+<script src="js/auth.js"></script>
 </body>
 </html>

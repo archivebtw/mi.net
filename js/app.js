@@ -88,5 +88,22 @@ document.addEventListener('keydown',e=>{
   if(button)toggleCreate(button);
  }
 });
-document.getElementById('profileOrb').textContent=state.me.initials;
-icons();nav('chats');if(conv(active))openConv(active);else renderList();
+let miAppBooted=false;
+
+function miBootApp(){
+ if(miAppBooted){
+  document.getElementById('profileOrb').textContent=state.me.initials;
+  if(view==='profile')renderProfile();
+  return;
+ }
+
+ miAppBooted=true;
+ document.getElementById('profileOrb').textContent=state.me.initials;
+ icons();
+ nav('chats');
+
+ if(conv(active))openConv(active);
+ else renderList();
+}
+
+window.miBootApp=miBootApp;

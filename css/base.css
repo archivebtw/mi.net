@@ -1,0 +1,21 @@
+/* Core variables, reset and shared primitives */
+:root{
+  --bg:#fff;--panel:#fff;--text:#050505;--muted:#747474;--soft:#f6f6f6;--soft2:#fafafa;
+  --border:#e8e8e8;--border2:#d4d4d4;--invert:#000;--invertText:#fff;
+  --rail:72px;--list:338px;--details:300px;--r:10px;--ease:160ms ease;
+}
+body.dark{
+  --bg:#0c0c0c;--panel:#101010;--text:#f4f4f4;--muted:#979797;--soft:#191919;--soft2:#151515;
+  --border:#252525;--border2:#353535;--invert:#f4f4f4;--invertText:#080808;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+body{overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.38;cursor:not-allowed}
+input,textarea{background:var(--panel)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--invert);outline-offset:2px}
+.icon{width:19px;height:19px;display:inline-grid;place-items:center;flex:0 0 19px}
+.icon svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hidden{display:none!important}

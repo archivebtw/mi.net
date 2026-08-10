@@ -1,0 +1,11 @@
+/* Tablet and mobile responsive rules */
+@media(max-width:1100px){:root{--details:250px;--list:310px}}
+@media(max-width:930px){.app{grid-template-columns:var(--rail) var(--list) minmax(380px,1fr)}.details{display:none}}
+@media(max-width:720px){
+  .app{display:block}.rail,.details{display:none}.listpane,.chatpane{position:fixed;inset:52px 0 0;border:0}.listhead{display:none}
+  .chatpane{z-index:20;transform:translateX(100%);transition:transform 180ms ease}body.chatopen .chatpane{transform:translateX(0)}body.chatopen .listpane{visibility:hidden}
+  .mobilebar{display:grid;position:fixed;z-index:60;top:0;left:0;right:0;height:52px;border-bottom:1px solid var(--border);background:var(--panel);grid-template-columns:52px 1fr 52px;align-items:center}
+  .mobilebar .iconbtn{justify-self:center}.mobiletitle{text-align:center;font-size:12px;font-weight:800}#back{visibility:hidden}body.chatopen #back{visibility:visible}
+  .messages{padding:20px 12px}.msg{max-width:95%}.chathead{display:none}.popover{left:12px!important;right:12px!important;width:auto;top:58px!important}
+  .modalback{align-items:end;padding:0}.modal,.modal.wide{width:100%;border-radius:14px 14px 0 0;max-height:92vh}.toastbox{left:12px;right:12px;bottom:12px}
+}

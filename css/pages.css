@@ -1,0 +1,5 @@
+/* Contacts, Publics, Explore and Profile */
+.page{height:100%;overflow:auto}.pagehead{padding:19px 16px 10px}.pagehead h2{margin:0;font-size:17px}.pagehead p{margin:5px 0 0;color:var(--muted);font-size:10px}
+.person,.publicrow{width:100%;min-height:66px;border:0;background:var(--panel);padding:9px 12px;display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;text-align:left}.person:hover,.publicrow:hover{background:var(--soft)}
+.copy strong{font-size:11px}.copy small{display:block;margin-top:4px;color:var(--muted);font-size:9px}.chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 13px}.chip{min-height:29px;border:1px solid var(--border);border-radius:999px;background:var(--panel);padding:0 10px;font-size:9px}.chip:hover,.chip.active{border-color:var(--invert)}
+.profilecard{text-align:center;padding:24px 16px}.profilecard .avatar{width:78px;height:78px;font-size:16px;margin:0 auto}.profilecard h2{font-size:18px;margin:12px 0 2px}.profilecard p{font-size:10px;color:var(--muted)}

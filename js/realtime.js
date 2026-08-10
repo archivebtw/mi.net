@@ -21,6 +21,10 @@ function miCurrentAuthUser(){
     :null;
 }
 
+function miIsRemoteConversation(c){
+  return Boolean(c&&c.remoteConversationId);
+}
+
 function miIsRemoteDirect(c){
   return Boolean(c&&c.kind==='direct'&&c.remoteConversationId);
 }
@@ -105,34 +109,140 @@ function miMergeRemoteConversation(row){
   return c;
 }
 
+function miMergeRemoteGroup(row){
+  let c=miFindRemoteConversation(row.conversation_id);
+  const name=String(row.title||'Group').trim()||'Group';
+  const memberCount=Number(row.member_count||0);
+  const preview=row.last_message_body||'Group created';
+
+  if(!c){
+    c={
+      id:miRemoteLocalConversationId(row.conversation_id),
+      kind:'group',
+      isRemote:true,
+      remoteConversationId:row.conversation_id,
+      creatorId:row.creator_id,
+      name,
+      handle:'mi.net group',
+      initials:initials(name),
+      preview,
+      time:miFormatRemoteListTime(row.last_message_at),
+      unread:Number(row.unread_count||0),
+      subtitle:`${memberCount} members · ${row.my_role||'member'}`,
+      desc:'Realtime group conversation',
+      memberCount,
+      myRole:row.my_role||'member',
+      myMutedUntil:row.my_muted_until||null,
+      myLastReadAt:row.my_last_read_at||null,
+      messages:[],
+      remoteProfiles:{},
+      remoteMessagesLoaded:false
+    };
+    state.conversations.unshift(c);
+  }else{
+    c.kind='group';
+    c.isRemote=true;
+    c.remoteConversationId=row.conversation_id;
+    c.creatorId=row.creator_id;
+    c.name=name;
+    c.handle='mi.net group';
+    c.initials=initials(name);
+    c.preview=preview;
+    c.time=miFormatRemoteListTime(row.last_message_at);
+    c.unread=Number(row.unread_count||0);
+    c.memberCount=memberCount;
+    c.myRole=row.my_role||'member';
+    c.myMutedUntil=row.my_muted_until||null;
+    c.myLastReadAt=row.my_last_read_at||null;
+    c.subtitle=`${memberCount} members · ${c.myRole}`;
+    c.desc=c.desc||'Realtime group conversation';
+    c.messages=c.messages||[];
+    c.remoteProfiles=c.remoteProfiles||{};
+  }
+
+  return c;
+}
+
+async function miEnsureRemoteSenderProfiles(c,userIds){
+  const client=miSupabaseClient();
+  if(!client||!c)return;
+
+  c.remoteProfiles=c.remoteProfiles||{};
+  const unique=[...new Set((userIds||[]).filter(Boolean))];
+  const missing=unique.filter(userId=>!c.remoteProfiles[userId]);
+
+  if(!missing.length)return;
+
+  const {data,error}=await client
+    .from('profiles')
+    .select('id, username, display_name, bio')
+    .in('id',missing);
+
+  if(error){
+    console.warn('mi.net sender profile load failed',error);
+    return;
+  }
+
+  for(const profile of data||[]){
+    const name=(profile.display_name||'').trim()||('@'+profile.username);
+    c.remoteProfiles[profile.id]={
+      id:profile.id,
+      username:profile.username,
+      name,
+      initials:initials(name),
+      bio:profile.bio||''
+    };
+  }
+}
+
 async function miLoadRemoteConversations(){
   const client=miSupabaseClient();
   if(!client)return {ok:false,message:'Supabase is not ready.'};
 
-  const {data,error}=await client.rpc('list_my_direct_conversations');
+  const [directResult,groupResult]=await Promise.all([
+    client.rpc('list_my_direct_conversations'),
+    client.rpc('list_my_group_conversations')
+  ]);
 
-  if(error){
-    console.error('mi.net realtime inbox load failed',error);
+  if(directResult.error){
+    console.error('mi.net Direct inbox load failed',directResult.error);
     return {ok:false,message:'Could not load Direct conversations.'};
+  }
+
+  if(groupResult.error){
+    console.error('mi.net Group inbox load failed',groupResult.error);
+
+    // Keep Direct working if the group SQL migration has not been installed yet.
+    if(!/list_my_group_conversations/i.test(groupResult.error.message||'')){
+      return {ok:false,message:'Could not load group conversations.'};
+    }
   }
 
   const seen=new Set();
 
-  for(const row of data||[]){
+  for(const row of directResult.data||[]){
     seen.add(row.conversation_id);
     miMergeRemoteConversation(row);
   }
 
-  // Do not delete local/demo conversations. Remove only stale remote cache entries
-  // that no longer appear in the authenticated user's server inbox.
+  for(const row of groupResult.data||[]){
+    seen.add(row.conversation_id);
+    miMergeRemoteGroup(row);
+  }
+
   state.conversations=state.conversations.filter(c=>
     !c.remoteConversationId||seen.has(c.remoteConversationId)
   );
 
   persist();
+
   if(view==='chats')renderList();
 
-  return {ok:true,conversations:data||[]};
+  return {
+    ok:true,
+    directs:directResult.data||[],
+    groups:groupResult.data||[]
+  };
 }
 
 async function miGetOrCreateRemoteDirect(person){
@@ -252,14 +362,22 @@ async function miRemoteMessageToLocal(row,c,reactions=[]){
   const createdAt=row.created_at||new Date().toISOString();
   const otherRead=c.otherLastReadAt&&new Date(c.otherLastReadAt)>=new Date(createdAt);
 
+  const senderProfile=c.remoteProfiles?.[row.sender_id];
+  const senderName=own
+    ?state.me.name
+    :(senderProfile?.name||(c.kind==='direct'?c.name:'mi.net user'));
+  const senderInitials=own
+    ?state.me.initials
+    :(senderProfile?.initials||(c.kind==='direct'?c.initials:initials(senderName)));
+
   return {
     id:row.id,
     remoteMessageId:row.id,
     remote:true,
     createdAt,
     senderId:row.sender_id,
-    a:own?state.me.name:c.name,
-    i:own?state.me.initials:c.initials,
+    a:senderName,
+    i:senderInitials,
     t:miFormatRemoteTime(createdAt),
     x:row.body||'',
     own:own?1:0,
@@ -306,7 +424,7 @@ function miRecalculateRemoteReactionTotals(c){
 }
 
 async function miLoadRemoteMessages(c){
-  if(!miIsRemoteDirect(c))return {ok:false};
+  if(!miIsRemoteConversation(c))return {ok:false};
 
   const scrollState=active===c.id&&typeof captureMessageScroll==='function'
     ?captureMessageScroll()
@@ -352,8 +470,15 @@ async function miLoadRemoteMessages(c){
   }
 
   const reactions=reactionResult.data||[];
+  const rows=messageResult.data||[];
+
+  await miEnsureRemoteSenderProfiles(
+    c,
+    rows.map(row=>row.sender_id)
+  );
+
   const messages=await Promise.all(
-    (messageResult.data||[]).map(row=>miRemoteMessageToLocal(row,c,reactions))
+    rows.map(row=>miRemoteMessageToLocal(row,c,reactions))
   );
 
   messages.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
@@ -383,7 +508,7 @@ async function miLoadRemoteMessages(c){
 }
 
 async function miRefreshRemoteReactions(c){
-  if(!miIsRemoteDirect(c))return;
+  if(!miIsRemoteConversation(c))return;
 
   const client=miSupabaseClient();
   const {data,error}=await client
@@ -456,6 +581,8 @@ async function miUpsertRemoteLocalMessage(c,row,{incrementUnread=false}={}){
     ?captureMessageScroll()
     :null;
 
+  await miEnsureRemoteSenderProfiles(c,[row.sender_id]);
+
   const existingIndex=(c.messages||[]).findIndex(m=>m.id===row.id);
   const existing=existingIndex>=0?c.messages[existingIndex]:null;
   const mapped=await miRemoteMessageToLocal(row,c,[]);
@@ -503,7 +630,7 @@ async function miUpsertRemoteLocalMessage(c,row,{incrementUnread=false}={}){
 }
 
 async function miSendRemoteMessage(c,{body='',replyTo=null,attachment=null,forwardedFrom=null}={}){
-  if(!miIsRemoteDirect(c))return {ok:false,message:'Not a realtime Direct.'};
+  if(!miIsRemoteConversation(c))return {ok:false,message:'Not a realtime conversation.'};
 
   const client=miSupabaseClient();
   const user=miCurrentAuthUser();
@@ -675,7 +802,7 @@ async function miSetRemoteReaction(c,m,emoji){
 }
 
 async function miMarkRemoteRead(c){
-  if(!miIsRemoteDirect(c))return;
+  if(!miIsRemoteConversation(c))return;
 
   const client=miSupabaseClient();
   const user=miCurrentAuthUser();
@@ -701,10 +828,16 @@ async function miMarkRemoteRead(c){
 }
 
 function miRefreshRemoteReadStatuses(c){
-  if(!miIsRemoteDirect(c))return;
+  if(!miIsRemoteConversation(c))return;
 
   for(const m of c.messages||[]){
     if(!m.own)continue;
+
+    if(c.kind==='group'){
+      m.status='sent';
+      continue;
+    }
+
     m.status=
       c.otherLastReadAt&&
       new Date(c.otherLastReadAt)>=new Date(m.createdAt)
@@ -725,7 +858,7 @@ function miRefreshRemoteReadStatuses(c){
 }
 
 async function miOpenRemoteConversation(c){
-  if(!miIsRemoteDirect(c))return;
+  if(!miIsRemoteConversation(c))return;
   await miLoadRemoteMessages(c);
 }
 
@@ -788,20 +921,92 @@ async function miHandleRemoteMemberEvent(payload){
   const row=payload.new&&Object.keys(payload.new).length?payload.new:payload.old;
   if(!row)return;
 
+  const previous=payload.old||{};
   const user=miCurrentAuthUser();
   if(!user)return;
 
-  if(payload.eventType==='INSERT'&&row.user_id===user.id){
+  const moderationChanged=
+    payload.eventType==='INSERT'||
+    previous.member_status!==row.member_status||
+    previous.member_role!==row.member_role||
+    previous.muted_until!==row.muted_until;
+
+  // Our own membership controls whether a group belongs in our inbox.
+  if(row.user_id===user.id){
+    if(row.member_status&&row.member_status!=='active'){
+      const c=miFindRemoteConversation(row.conversation_id);
+
+      if(c){
+        state.conversations=state.conversations.filter(item=>item.id!==c.id);
+        persist();
+
+        if(active===c.id){
+          active=state.conversations[0]?.id||null;
+          chat.innerHTML=`<div class="empty"><div class="emptylogo">mi.net</div><h1>Group unavailable.</h1><p>You are no longer an active member of this group.</p></div>`;
+          details.innerHTML='';
+          document.body.classList.remove('chatopen');
+        }
+
+        if(view==='chats')renderList();
+      }
+
+      toast(row.member_status==='banned'?'You were banned from a group':'You were removed from a group');
+      return;
+    }
+
+    // Ignore our ordinary last_read_at update. It is already reflected locally.
+    if(!moderationChanged)return;
+
     await miLoadRemoteConversations();
+
+    const ownConversation=miFindRemoteConversation(row.conversation_id);
+
+    if(ownConversation?.kind==='group'){
+      ownConversation.myRole=row.member_role||ownConversation.myRole;
+      ownConversation.myMutedUntil=row.muted_until||null;
+      ownConversation.subtitle=`${ownConversation.memberCount||0} members · ${ownConversation.myRole}`;
+      persist();
+
+      if(active===ownConversation.id){
+        const scrollState=typeof captureMessageScroll==='function'
+          ?captureMessageScroll()
+          :null;
+        detail(ownConversation);
+        renderConversation(ownConversation);
+        if(typeof restoreMessageScroll==='function'){
+          restoreMessageScroll(scrollState);
+        }
+      }
+
+      if(typeof miRefreshGroupManagerIfOpen==='function'){
+        await miRefreshGroupManagerIfOpen(row.conversation_id);
+      }
+    }
+
     return;
   }
 
   const c=miFindRemoteConversation(row.conversation_id);
   if(!c)return;
 
-  if(row.user_id===c.remoteUserId){
+  // Direct read receipts depend on the other participant's last_read_at.
+  if(c.kind==='direct'&&row.user_id===c.remoteUserId){
     c.otherLastReadAt=row.last_read_at||null;
     miRefreshRemoteReadStatuses(c);
+    return;
+  }
+
+  // In groups we do not use every participant's read receipt yet.
+  // Refresh only when actual membership/moderation state changed.
+  if(c.kind==='group'&&moderationChanged){
+    await miLoadRemoteConversations();
+
+    if(typeof miRefreshGroupManagerIfOpen==='function'){
+      await miRefreshGroupManagerIfOpen(row.conversation_id);
+    }
+
+    const refreshed=miFindRemoteConversation(row.conversation_id);
+    if(refreshed&&active===refreshed.id)detail(refreshed);
   }
 }
 
@@ -825,7 +1030,7 @@ async function miRealtimeStart(){
   await miLoadRemoteConversations();
 
   const channel=client
-    .channel('mi-direct-'+user.id)
+    .channel('mi-conversations-'+user.id)
     .on(
       'postgres_changes',
       {event:'INSERT',schema:'public',table:'messages'},
@@ -886,6 +1091,8 @@ async function miRealtimeStop(){
   miRealtime.status='idle';
 }
 
+window.miFindRemoteConversation=miFindRemoteConversation;
+window.miIsRemoteConversation=miIsRemoteConversation;
 window.miRealtimeStart=miRealtimeStart;
 window.miRealtimeStop=miRealtimeStop;
 window.miGetOrCreateRemoteDirect=miGetOrCreateRemoteDirect;

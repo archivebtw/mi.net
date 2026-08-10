@@ -1,21 +1,63 @@
 // Chat rendering, messages, public posts and conversation actions
 function detail(c){
  if(!c){details.innerHTML='';return}
- details.innerHTML=`<div class="detailtop">${A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}<h2>${esc(c.name)}</h2><div class="handle">${esc(c.handle||'')}</div><p>${esc(c.desc||'')}</p><div class="detailactions">${c.kind==='public'?`<button class="outline" id="joinBtn">${c.joined?'Joined':'Join'}</button>`:`<button class="outline" id="detailMessage">Message</button>`}</div></div>
+
+ const remoteGroup=c.kind==='group'&&c.remoteConversationId;
+ const groupRole=remoteGroup?(c.myRole||'member'):'';
+ const groupMeta=remoteGroup
+  ?`${c.memberCount||0} members · ${groupRole}`
+  :(c.handle||'');
+
+ details.innerHTML=`<div class="detailtop">
+ ${A(c.initials,(c.kind!=='direct'?'square ':'')+(c.kind==='public'?'dark':''))}
+ <h2>${esc(c.name)}</h2>
+ <div class="handle">${esc(groupMeta)}</div>
+ <p>${esc(c.desc||'')}</p>
+ <div class="detailactions">
+  ${c.kind==='public'
+   ?`<button class="outline" id="joinBtn">${c.joined?'Joined':'Join'}</button>`
+   :`<button class="outline" id="detailMessage">Message</button>`}
+ </div>
+ </div>
  <div class="detaillist">
- ${c.kind!=='direct'?`<button class="detailrow" data-library="members"><span class="icon">${svg('users')}</span><span>Members</span><small>${esc(c.subtitle||'')}</small></button>`:''}
+ ${remoteGroup
+  ?`<button class="detailrow" id="groupMembersManage"><span class="icon">${svg('users')}</span><span>Members</span><small>${c.memberCount||0}</small></button>`
+  :c.kind!=='direct'
+   ?`<button class="detailrow" data-library="members"><span class="icon">${svg('users')}</span><span>Members</span><small>${esc(c.subtitle||'')}</small></button>`
+   :''}
  <button class="detailrow" data-library="media"><span class="icon">${svg('image')}</span><span>Media</span><small>${countLibrary(c,'media')}</small></button>
  <button class="detailrow" data-library="links"><span class="icon">${svg('link')}</span><span>Links</span><small>${countLibrary(c,'links')}</small></button>
  <button class="detailrow" data-library="files"><span class="icon">${svg('file')}</span><span>Files</span><small>${countLibrary(c,'files')}</small></button>
  <button class="detailrow" id="notificationToggle"><span class="icon">${svg('bell')}</span><span>Notifications</span><small>${state.muted.includes(c.id)?'Off':'On'}</small></button>
  <button class="detailrow" id="detailSearch"><span class="icon">${svg('search')}</span><span>Search</span></button>
  </div>`;
- const j=document.getElementById('joinBtn');if(j)j.onclick=()=>{c.joined=!c.joined;j.textContent=c.joined?'Joined':'Join';persist();toast(c.joined?'Joined public':'Left public')};
- const dm=document.getElementById('detailMessage');if(dm)dm.onclick=()=>document.getElementById('messageInput')?.focus();
+
+ const j=document.getElementById('joinBtn');
+ if(j)j.onclick=()=>{
+  c.joined=!c.joined;
+  j.textContent=c.joined?'Joined':'Join';
+  persist();
+  toast(c.joined?'Joined public':'Left public');
+ };
+
+ const dm=document.getElementById('detailMessage');
+ if(dm)dm.onclick=()=>document.getElementById('messageInput')?.focus();
+
+ const groupMembers=document.getElementById('groupMembersManage');
+ if(groupMembers&&typeof miOpenGroupMembersManager==='function'){
+  groupMembers.onclick=()=>miOpenGroupMembersManager(c);
+ }
+
  details.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>openLibrary(c,b.dataset.library));
+
  document.getElementById('notificationToggle').onclick=()=>toggleMute(c);
- document.getElementById('detailSearch').onclick=()=>{chatSearchOpen=true;renderConversation(c);setTimeout(()=>document.getElementById('chatSearchInput')?.focus(),0)};
+ document.getElementById('detailSearch').onclick=()=>{
+  chatSearchOpen=true;
+  renderConversation(c);
+  setTimeout(()=>document.getElementById('chatSearchInput')?.focus(),0);
+ };
 }
+
 function allMessages(c){
  if(c.messages)return c.messages;
  if(c.posts)return c.posts.flatMap(p=>(p.replies||[]));
@@ -201,15 +243,29 @@ function msg(m){
 }
 function composerHtml(c,placeholder){
  const draft=editTarget?'':draftFor(c.id);
+ const groupMuted=
+  typeof miIsGroupMuted==='function'&&
+  miIsGroupMuted(c)&&
+  !editTarget;
+
+ const composerPlaceholder=groupMuted
+  ?'You are muted in this group'
+  :(editTarget?'Edit message':placeholder);
+
  return `${editTarget?`<div class="replybar editbar"><div><strong>Editing message</strong><span>${esc(editTarget.x||'').slice(0,90)}</span></div><button class="mini-close" id="cancelEdit">×</button></div>`:''}
  ${replyTarget&&!editTarget?`<div class="replybar"><div><strong>Reply to ${esc(replyTarget.a)}</strong><span>${esc(replyTarget.x||replyTarget.file?.name||'Attachment').slice(0,90)}</span></div><button class="mini-close" id="cancelReply">×</button></div>`:''}
  ${pendingAttachment&&!editTarget?`<div class="attachbar"><div><strong>${esc(pendingAttachment.name)}</strong><span>${esc(pendingAttachment.type||'file')} · ${formatSize(pendingAttachment.size)}</span></div><button class="mini-close" id="cancelAttach">×</button></div>`:''}
- <footer class="composer ${(replyTarget||pendingAttachment||editTarget)?'has-top':''}">
-  <button class="iconbtn" id="attachBtn" title="Attach" ${editTarget?'disabled':''}><span class="icon">${svg('paperclip')}</span></button>
-  <textarea id="messageInput" placeholder="${esc(editTarget?'Edit message':placeholder)}">${esc(editTarget?editTarget.x||'':draft)}</textarea>
-  <div class="composer-meta"><span class="draft-state" id="draftState">${draft&&!editTarget?'draft':''}</span><button class="send" id="sendBtn" title="${editTarget?'Save changes':'Send'}"><span class="icon">${svg(editTarget?'check':'send')}</span></button></div>
+ ${groupMuted?`<div class="group-muted-banner"><span class="icon">${svg('bell')}</span><span>An admin or moderator muted you. You can read messages but cannot send new ones.</span></div>`:''}
+ <footer class="composer ${(replyTarget||pendingAttachment||editTarget||groupMuted)?'has-top':''} ${groupMuted?'composer-muted':''}">
+  <button class="iconbtn" id="attachBtn" title="Attach" ${(editTarget||groupMuted)?'disabled':''}><span class="icon">${svg('paperclip')}</span></button>
+  <textarea id="messageInput" placeholder="${esc(composerPlaceholder)}" ${groupMuted?'disabled':''}>${esc(editTarget?editTarget.x||'':draft)}</textarea>
+  <div class="composer-meta">
+   <span class="draft-state" id="draftState">${draft&&!editTarget?'draft':''}</span>
+   <button class="send" id="sendBtn" title="${editTarget?'Save changes':'Send'}" ${groupMuted?'disabled':''}><span class="icon">${svg(editTarget?'check':'send')}</span></button>
+  </div>
  </footer>`;
 }
+
 function renderChat(c){
  const q=chatSearchQuery.trim().toLowerCase();
  const msgs=(c.messages||[]).filter(m=>!q||`${m.a} ${m.x||''} ${m.file?.name||''}`.toLowerCase().includes(q));
@@ -250,6 +306,10 @@ function bindChat(c){
   // Server-backed Direct
   // ------------------------------------------------------------------
   if(c.remoteConversationId&&typeof miSendRemoteMessage==='function'){
+   if(typeof miIsGroupMuted==='function'&&miIsGroupMuted(c)&&!editTarget){
+    return toast('You are muted in this group');
+   }
+
    send.disabled=true;
 
    if(editTarget){

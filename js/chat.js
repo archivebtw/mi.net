@@ -126,7 +126,10 @@ function fileAttachmentHtml(file){
   </figure>`;
  }
 
- return `<div class="filecard"><span class="icon">${svg('file')}</span><div class="filemeta"><strong>${esc(file.name)}</strong><small>${esc(file.type||'file')} · ${formatSize(file.size||0)}</small></div></div>`;
+ const fileCard=`<span class="icon">${svg('file')}</span><div class="filemeta"><strong>${esc(file.name)}</strong><small>${esc(file.type||'file')} · ${formatSize(file.size||0)}</small></div>`;
+ return file.url
+  ?`<a class="filecard filecard-link" href="${file.url}" target="_blank" rel="noopener noreferrer" download="${esc(file.name||'file')}">${fileCard}</a>`
+  :`<div class="filecard">${fileCard}</div>`;
 }
 function linkifyText(text){
  return esc(String(text||'')).replace(MESSAGE_URL_RE,match=>{
@@ -213,7 +216,7 @@ function renderChat(c){
  chat.innerHTML=`<header class="chathead">${A(c.initials,c.kind!=='direct'?'square'+(c.kind==='public'?' dark':''):'')}<div class="chatname"><strong>${esc(c.name)}</strong><span>${esc(c.subtitle||'')}</span></div><div class="chatactions">${c.kind==='direct'?`<button class="iconbtn" id="callBtn" title="Call"><span class="icon">${svg('phone')}</span></button>`:''}<button class="iconbtn" id="chatSearchBtn" title="Search"><span class="icon">${svg('search')}</span></button><button class="iconbtn" id="chatMoreBtn" title="More"><span class="icon">${svg('more')}</span></button></div></header>
  ${chatSearchOpen?`<div class="chatsearch"><input id="chatSearchInput" value="${esc(chatSearchQuery)}" placeholder="Search in ${esc(c.name)}"><button class="iconbtn" id="closeChatSearch">${svg('x')}</button></div>`:''}
  ${pinnedBannerHtml(c)}
- <section class="messages" id="messages"><div class="day">${q?`${msgs.length} result${msgs.length===1?'':'s'}`:'Today'}</div>${msgs.length?msgs.map(msg).join(''):`<div class="empty"><p>No matching messages.</p></div>`}</section>
+ <section class="messages" id="messages"><div class="day">${c.remoteLoading?'Syncing…':q?`${msgs.length} result${msgs.length===1?'':'s'}`:'Today'}</div>${msgs.length?msgs.map(msg).join(''):`<div class="empty"><p>No matching messages.</p></div>`}</section>
  ${composerHtml(c,'Message '+c.name)}`;
  bindChat(c);
  miHydrateMediaElements(chat);
@@ -240,9 +243,67 @@ function bindChat(c){
  const call=document.getElementById('callBtn');if(call)call.onclick=()=>startCall(c);
  const input=document.getElementById('messageInput'),send=document.getElementById('sendBtn');
 
- const go=()=>{
-  let x=input.value.trim();
+ const go=async()=>{
+  const x=input.value.trim();
 
+  // ------------------------------------------------------------------
+  // Server-backed Direct
+  // ------------------------------------------------------------------
+  if(c.remoteConversationId&&typeof miSendRemoteMessage==='function'){
+   send.disabled=true;
+
+   if(editTarget){
+    if(!x){
+     send.disabled=false;
+     return toast('Message cannot be empty');
+    }
+
+    const result=await miUpdateRemoteMessage(c,editTarget,x);
+    send.disabled=false;
+
+    if(!result.ok){
+     toast(result.message||'Could not edit message');
+     return;
+    }
+
+    editTarget=null;
+    setDraft(c.id,'');
+    renderChat(c);
+    renderList();
+    toast('Message edited');
+    return;
+   }
+
+   if(!x&&!pendingAttachment){
+    send.disabled=false;
+    return;
+   }
+
+   const result=await miSendRemoteMessage(c,{
+    body:x,
+    replyTo:replyTarget,
+    attachment:pendingAttachment
+   });
+
+   send.disabled=false;
+
+   if(!result.ok){
+    toast(result.message||'Could not send message');
+    return;
+   }
+
+   replyTarget=null;
+   pendingAttachment=null;
+   setDraft(c.id,'');
+   renderChat(c);
+   renderList();
+   setTimeout(scrollBottom,0);
+   return;
+  }
+
+  // ------------------------------------------------------------------
+  // Existing local prototype chats/groups/public communities
+  // ------------------------------------------------------------------
   if(editTarget){
    if(!x)return toast('Message cannot be empty');
    editTarget.x=x;
@@ -278,7 +339,6 @@ function bindChat(c){
   renderList();
   setTimeout(scrollBottom,0);
 
-  // Demo delivery lifecycle: sent -> read.
   setTimeout(()=>{
    const latest=conv(c.id)?.messages?.find(item=>item.id===m.id);
    if(latest&&latest.status!=='read'){
@@ -372,8 +432,20 @@ function editMessage(c,m){
  setTimeout(()=>{const input=document.getElementById('messageInput');if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}},0);
 }
 
-function deleteMessage(c,m){
+async function deleteMessage(c,m){
  if(!confirm('Delete this message?'))return;
+
+ if(c.remoteConversationId&&m.remote&&typeof miDeleteRemoteMessage==='function'){
+  const result=await miDeleteRemoteMessage(c,m);
+  if(!result.ok){
+   toast(result.message||'Could not delete message');
+   return;
+  }
+  detail(c);
+  toast('Message deleted');
+  return;
+ }
+
  c.messages=c.messages.filter(x=>x.id!==m.id);
  if(pinnedMessageId(c.id)===m.id)setPinnedMessage(c.id,null);
  c.preview=c.messages.at(-1)?.x||'Message deleted';
@@ -401,8 +473,31 @@ function openForwardModal(sourceConversation,m){
  modal.hidden=false;
  document.getElementById('closeForward').onclick=()=>modal.hidden=true;
  modal.onclick=e=>{if(e.target===modal)modal.hidden=true};
- modal.querySelectorAll('[data-forward-to]').forEach(b=>b.onclick=()=>{
+ modal.querySelectorAll('[data-forward-to]').forEach(b=>b.onclick=async()=>{
   const dest=conv(b.dataset.forwardTo);
+
+  if(dest.remoteConversationId&&typeof miSendRemoteMessage==='function'){
+   if(!m.x&&m.file){
+    toast('Media forwarding to Realtime Direct will be added next.');
+    return;
+   }
+
+   const result=await miSendRemoteMessage(dest,{
+    body:m.x||'',
+    forwardedFrom:m.a
+   });
+
+   if(!result.ok){
+    toast(result.message||'Could not forward message');
+    return;
+   }
+
+   modal.hidden=true;
+   renderList();
+   toast('Message forwarded to '+dest.name);
+   return;
+  }
+
   const forwarded={
    id:id(),a:state.me.name,i:state.me.initials,t:'now',
    x:m.x||'',own:1,reactions:0,reactionMap:{},status:'sent',
@@ -463,7 +558,13 @@ function syncLegacyReactionFields(m){
  m.reacted=Object.values(map).some(item=>item.mine);
 }
 
-function setMessageReaction(c,m,emoji){
+async function setMessageReaction(c,m,emoji){
+ if(c.remoteConversationId&&m.remote&&typeof miSetRemoteReaction==='function'){
+  const result=await miSetRemoteReaction(c,m,emoji);
+  if(!result.ok)toast(result.message||'Could not update reaction');
+  return;
+ }
+
  const map=ensureMessageReactionMap(m);
  const currentMine=Object.keys(map).find(key=>map[key]?.mine);
 
@@ -561,16 +662,17 @@ function bindPublic(c){
 }
 function scrollBottom(){let m=document.getElementById('messages');if(m)m.scrollTop=m.scrollHeight}
 function openConv(idv){
- let c=conv(idv);if(!c)return;active=idv;c.unread=0;chatSearchOpen=false;chatSearchQuery='';replyTarget=null;pendingAttachment=null;editTarget=null;renderConversation(c);detail(c);if(view==='chats')renderList();document.body.classList.add('chatopen');document.getElementById('mobileTitle').textContent=c.name;persist();setTimeout(scrollBottom,0)
+ let c=conv(idv);if(!c)return;active=idv;c.unread=0;chatSearchOpen=false;chatSearchQuery='';replyTarget=null;pendingAttachment=null;editTarget=null;renderConversation(c);detail(c);if(view==='chats')renderList();document.body.classList.add('chatopen');document.getElementById('mobileTitle').textContent=c.name;persist();setTimeout(scrollBottom,0);
+ if(c.remoteConversationId&&typeof miOpenRemoteConversation==='function')miOpenRemoteConversation(c);
 }
 function toggleMute(c){const i=state.muted.indexOf(c.id);if(i>=0)state.muted.splice(i,1);else state.muted.push(c.id);persist();detail(c);if(view==='chats')renderList();toast(state.muted.includes(c.id)?'Notifications muted':'Notifications enabled')}
 function openChatMenu(anchor,c){
  const p=document.getElementById('chatPopover');const muted=state.muted.includes(c.id);
- p.innerHTML=`<button id="menuPin"><span class="icon">${svg('pin')}</span>${isPinnedConversation(c.id)?'Unpin':'Pin'} conversation</button><button id="menuUnread"><span class="icon">${svg('message')}</span>Mark as unread</button><button id="menuMute"><span class="icon">${svg('bell')}</span>${muted?'Unmute':'Mute'} notifications</button><button id="menuSearch"><span class="icon">${svg('search')}</span>Search conversation</button>${c.kind!=='public'?`<button id="menuClear"><span class="icon">${svg('trash')}</span>Clear messages</button>`:''}<button class="danger" id="menuDelete"><span class="icon">${svg('trash')}</span>${c.kind==='public'?'Leave public':'Delete conversation'}</button>`;
+ p.innerHTML=`<button id="menuPin"><span class="icon">${svg('pin')}</span>${isPinnedConversation(c.id)?'Unpin':'Pin'} conversation</button><button id="menuUnread"><span class="icon">${svg('message')}</span>Mark as unread</button><button id="menuMute"><span class="icon">${svg('bell')}</span>${muted?'Unmute':'Mute'} notifications</button><button id="menuSearch"><span class="icon">${svg('search')}</span>Search conversation</button>${c.kind!=='public'&&!c.remoteConversationId?`<button id="menuClear"><span class="icon">${svg('trash')}</span>Clear messages</button>`:''}${c.remoteConversationId?'':`<button class="danger" id="menuDelete"><span class="icon">${svg('trash')}</span>${c.kind==='public'?'Leave public':'Delete conversation'}</button>`}`;
  let r=anchor.getBoundingClientRect();p.style.top=(r.bottom+6)+'px';p.style.left=Math.max(10,r.right-200)+'px';p.hidden=false;
  document.getElementById('menuPin').onclick=()=>{p.hidden=true;toggleConversationPin(c)};document.getElementById('menuUnread').onclick=()=>{p.hidden=true;c.unread=Math.max(1,c.unread||0);persist();renderList();toast('Marked as unread')};document.getElementById('menuMute').onclick=()=>{p.hidden=true;toggleMute(c)};
  document.getElementById('menuSearch').onclick=()=>{p.hidden=true;chatSearchOpen=true;renderConversation(c);setTimeout(()=>document.getElementById('chatSearchInput')?.focus(),0)};
  const clear=document.getElementById('menuClear');if(clear)clear.onclick=()=>{p.hidden=true;if(confirm('Clear all messages in this conversation?')){c.messages=[];c.preview='Conversation cleared';persist();renderChat(c);renderList()}};
- document.getElementById('menuDelete').onclick=()=>{p.hidden=true;if(confirm(c.kind==='public'?'Leave this public?':'Delete this conversation?')){state.conversations=state.conversations.filter(x=>x.id!==c.id);persist();active=state.conversations[0]?.id||null;chat.innerHTML=`<div class="empty"><div class="emptylogo">mi.net</div><h1>No conversation selected.</h1><p>Choose another chat or create a new one.</p></div>`;details.innerHTML='';renderList();document.body.classList.remove('chatopen')}};
+ const deleteConversation=document.getElementById('menuDelete');if(deleteConversation)deleteConversation.onclick=()=>{p.hidden=true;if(confirm(c.kind==='public'?'Leave this public?':'Delete this conversation?')){state.conversations=state.conversations.filter(x=>x.id!==c.id);persist();active=state.conversations[0]?.id||null;chat.innerHTML=`<div class="empty"><div class="emptylogo">mi.net</div><h1>No conversation selected.</h1><p>Choose another chat or create a new one.</p></div>`;details.innerHTML='';renderList();document.body.classList.remove('chatopen')}};
 }
 document.addEventListener('click',e=>{for(const pid of ['createPopover','chatPopover']){const p=document.getElementById(pid);if(!p.hidden&&!e.target.closest('#'+pid)&&!e.target.closest('#createBtn')&&!e.target.closest('#mobileCreate')&&!e.target.closest('#chatMoreBtn'))p.hidden=true}});

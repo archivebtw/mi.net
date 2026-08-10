@@ -1,4 +1,4 @@
-// mi.net auth build: 2026-08-10-v4-profile-search
+// mi.net auth build: 2026-08-10-v5-realtime-direct
 // Supabase authentication and profile synchronization for mi.net.
 const miAuth = {
   client: null,
@@ -285,6 +285,11 @@ async function miEstablishSession(session){
 
   miHideAuthGate();
   if(typeof window.miBootApp==='function')window.miBootApp();
+
+  if(typeof window.miRealtimeStart==='function'){
+    await window.miRealtimeStart();
+  }
+
   return true;
 }
 
@@ -439,6 +444,10 @@ async function miSaveRemoteProfile({displayName,username,bio}){
 
 async function miSignOut(){
   if(!miAuth.client)return;
+
+  if(typeof window.miRealtimeStop==='function'){
+    await window.miRealtimeStop();
+  }
 
   const {error}=await miAuth.client.auth.signOut();
   if(error){
@@ -708,6 +717,8 @@ async function miInitAuth(){
   }
 }
 
+window.miGetSupabaseClient=()=>miAuth.client;
+window.miGetAuthUser=()=>miAuth.user;
 window.miSignOut=miSignOut;
 window.miSaveRemoteProfile=miSaveRemoteProfile;
 window.miAuthUserEmail=miAuthUserEmail;

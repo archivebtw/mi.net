@@ -5,15 +5,18 @@ document.getElementById('filePicker').onchange=async e=>{
 
  const type=f.type||'application/octet-stream';
  const isRichMedia=type.startsWith('image/')||type.startsWith('video/');
+ const remoteDirect=Boolean(current()?.remoteConversationId);
 
- if(isRichMedia&&f.size>80*1024*1024){
+ if((isRichMedia||remoteDirect)&&f.size>80*1024*1024){
   e.target.value='';
-  toast('Media is too large. Maximum demo size is 80 MB.');
+  toast('Attachment is too large. Maximum size is 80 MB.');
   return;
  }
 
  try{
-  pendingAttachment=isRichMedia
+  // Realtime Direct needs the actual Blob later for Supabase Storage,
+  // so every attachment is persisted temporarily in IndexedDB.
+  pendingAttachment=(isRichMedia||remoteDirect)
    ?await miStoreMediaFile(f)
    :{name:f.name,type,size:f.size};
 

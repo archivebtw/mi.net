@@ -711,3 +711,23 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+
+/* =========================================================
+   Realtime Direct additions
+   ========================================================= */
+.filecard-link{
+  color:inherit;
+  text-decoration:none;
+  transition:border-color var(--ease),background var(--ease),transform var(--ease);
+}
+.filecard-link:hover{
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  transform:translateY(-1px);
+}
+
+
+.realtime-direct-note{
+  color:var(--accent-2);
+}

@@ -76,9 +76,26 @@ function toggleConversationPin(c){
  toast(isPinnedConversation(c.id)?'Conversation pinned':'Conversation unpinned');
 }
 
-function ensureDirect(person){
+async function ensureDirect(person){
  const remoteId=person.id||person.remoteUserId||null;
 
+ // Real Supabase user -> real server-backed Direct.
+ if(remoteId&&typeof miGetOrCreateRemoteDirect==='function'){
+  const result=await miGetOrCreateRemoteDirect({
+   ...person,
+   remoteUserId:remoteId
+  });
+
+  if(!result.ok){
+   toast(result.message||'Could not open Direct');
+   return;
+  }
+
+  openConv(result.conversation.id);
+  return;
+ }
+
+ // Demo/local contact fallback.
  let c=state.conversations.find(x=>
   x.kind==='direct'&&(
    (remoteId&&x.remoteUserId===remoteId)||
@@ -98,12 +115,11 @@ function ensureDirect(person){
    time:'now',
    unread:0,
    subtitle:person.status||'mi.net user',
-   desc:person.bio||'mi.net user',
+   desc:person.bio||'mi.net contact',
    messages:[]
   };
   state.conversations.unshift(c);
  }else{
-  // Refresh mutable public profile data without changing conversation identity.
   if(remoteId)c.remoteUserId=remoteId;
   c.name=person.name||c.name;
   c.handle=person.handle||c.handle;

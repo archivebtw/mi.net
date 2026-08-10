@@ -80,6 +80,7 @@ function miMergeRemoteConversation(row){
       initials:initials(name),
       preview,
       time:miFormatRemoteListTime(row.last_message_at),
+      sortAt:row.last_message_at||null,
       unread:Number(row.unread_count||0),
       subtitle:'mi.net · realtime',
       desc:row.bio||'mi.net user',
@@ -100,6 +101,7 @@ function miMergeRemoteConversation(row){
     c.subtitle='mi.net · realtime';
     c.preview=preview;
     c.time=miFormatRemoteListTime(row.last_message_at);
+    c.sortAt=row.last_message_at||c.sortAt||null;
     c.unread=Number(row.unread_count||0);
     c.otherLastReadAt=row.other_last_read_at||null;
     c.myLastReadAt=row.my_last_read_at||null;
@@ -127,6 +129,7 @@ function miMergeRemoteGroup(row){
       initials:initials(name),
       preview,
       time:miFormatRemoteListTime(row.last_message_at),
+      sortAt:row.last_message_at||null,
       unread:Number(row.unread_count||0),
       subtitle:`${memberCount} members · ${row.my_role||'member'}`,
       desc:'Realtime group conversation',
@@ -149,6 +152,7 @@ function miMergeRemoteGroup(row){
     c.initials=initials(name);
     c.preview=preview;
     c.time=miFormatRemoteListTime(row.last_message_at);
+    c.sortAt=row.last_message_at||c.sortAt||null;
     c.unread=Number(row.unread_count||0);
     c.memberCount=memberCount;
     c.myRole=row.my_role||'member';
@@ -197,7 +201,17 @@ async function miEnsureRemoteSenderProfiles(c,userIds){
 
 async function miLoadRemoteConversations(){
   const client=miSupabaseClient();
-  if(!client)return {ok:false,message:'Supabase is not ready.'};
+
+  miRemoteInboxLoading=true;
+  miRemoteInboxError='';
+
+  if(!client){
+    miRemoteInboxLoading=false;
+    miRemoteInboxReady=true;
+    miRemoteInboxError='Supabase is not ready.';
+    if(view==='chats')renderList();
+    return {ok:false,message:miRemoteInboxError};
+  }
 
   const [directResult,groupResult]=await Promise.all([
     client.rpc('list_my_direct_conversations'),
@@ -206,7 +220,11 @@ async function miLoadRemoteConversations(){
 
   if(directResult.error){
     console.error('mi.net Direct inbox load failed',directResult.error);
-    return {ok:false,message:'Could not load Direct conversations.'};
+    miRemoteInboxLoading=false;
+    miRemoteInboxReady=true;
+    miRemoteInboxError='Could not load Direct conversations.';
+    if(view==='chats')renderList();
+    return {ok:false,message:miRemoteInboxError};
   }
 
   if(groupResult.error){
@@ -214,7 +232,11 @@ async function miLoadRemoteConversations(){
 
     // Keep Direct working if the group SQL migration has not been installed yet.
     if(!/list_my_group_conversations/i.test(groupResult.error.message||'')){
-      return {ok:false,message:'Could not load group conversations.'};
+      miRemoteInboxLoading=false;
+      miRemoteInboxReady=true;
+      miRemoteInboxError='Could not load group conversations.';
+      if(view==='chats')renderList();
+      return {ok:false,message:miRemoteInboxError};
     }
   }
 
@@ -235,6 +257,10 @@ async function miLoadRemoteConversations(){
   );
 
   persist();
+
+  miRemoteInboxLoading=false;
+  miRemoteInboxReady=true;
+  miRemoteInboxError='';
 
   if(view==='chats')renderList();
 
@@ -488,6 +514,7 @@ async function miLoadRemoteMessages(c){
   c.remoteMessagesLoaded=true;
   c.preview=messages.at(-1)?.x||messages.at(-1)?.file?.name||c.preview||'New conversation';
   c.time=miFormatRemoteListTime(messages.at(-1)?.createdAt);
+  c.sortAt=messages.at(-1)?.createdAt||c.sortAt||null;
   miRecalculateRemoteReactionTotals(c);
 
   persist();
@@ -601,6 +628,7 @@ async function miUpsertRemoteLocalMessage(c,row,{incrementUnread=false}={}){
 
   c.preview=mapped.x||mapped.file?.name||'Message';
   c.time=miFormatRemoteListTime(mapped.createdAt);
+  c.sortAt=mapped.createdAt||c.sortAt||null;
 
   const me=miCurrentAuthUser()?.id;
   if(incrementUnread&&row.sender_id!==me&&active!==c.id){
@@ -883,6 +911,7 @@ async function miHandleRemoteMessageEvent(payload){
 
     c.messages=(c.messages||[]).filter(m=>m.id!==row.id);
     c.preview=c.messages.at(-1)?.x||c.messages.at(-1)?.file?.name||'Message deleted';
+    c.sortAt=c.messages.at(-1)?.createdAt||c.sortAt||null;
     persist();
     if(active===c.id){
       renderChat(c);
@@ -1026,6 +1055,11 @@ async function miRealtimeStart(){
   miRealtime.userId=user.id;
   miRealtime.started=true;
   miRealtime.status='connecting';
+
+  miRemoteInboxReady=false;
+  miRemoteInboxLoading=true;
+  miRemoteInboxError='';
+  if(view==='chats')renderList();
 
   await miLoadRemoteConversations();
 

@@ -4,7 +4,65 @@ let miStateStorageKey=MI_STATE_BASE_KEY;
 let state;
 try{state=JSON.parse(localStorage.getItem(miStateStorageKey))||initialState()}catch(e){state=initialState()}
 
+const MI_LEGACY_DEMO_IDS=new Set(['alex','dev','design','music','nora']);
+const MI_LEGACY_DEMO_HANDLES=new Set([
+ '@alex','@nora','@leov','@minasol',
+ '/mi-dev','mi.net/design','mi.net/music'
+]);
+const MI_CURRENT_DATA_VERSION=10;
+
+function miIsLegacyDemoConversation(c){
+ if(!c||c.remoteConversationId)return false;
+ if(MI_LEGACY_DEMO_IDS.has(c.id))return true;
+ if(MI_LEGACY_DEMO_HANDLES.has(c.handle))return true;
+
+ const signature=`${c.kind||''}|${c.name||''}|${c.handle||''}`.toLowerCase();
+
+ return [
+  'direct|alex morgan|@alex',
+  'direct|nora ito|@nora',
+  'group|mi.net dev|/mi-dev',
+  'public|/design|mi.net/design',
+  'public|/music|mi.net/music'
+ ].includes(signature);
+}
+
+function miPurgeLegacyDemoState(target){
+ if(!target||typeof target!=='object')return target;
+
+ const removedIds=new Set(
+  (Array.isArray(target.conversations)?target.conversations:[])
+   .filter(miIsLegacyDemoConversation)
+   .map(c=>c.id)
+ );
+
+ target.conversations=(Array.isArray(target.conversations)?target.conversations:[])
+  .filter(c=>!removedIds.has(c.id));
+
+ target.muted=(Array.isArray(target.muted)?target.muted:[])
+  .filter(idv=>!removedIds.has(idv));
+
+ target.pinnedConversations=(Array.isArray(target.pinnedConversations)?target.pinnedConversations:[])
+  .filter(idv=>!removedIds.has(idv));
+
+ if(target.drafts&&typeof target.drafts==='object'){
+  for(const idv of removedIds)delete target.drafts[idv];
+ }
+
+ if(target.pinnedMessages&&typeof target.pinnedMessages==='object'){
+  for(const idv of removedIds)delete target.pinnedMessages[idv];
+ }
+
+ if(target.readState&&typeof target.readState==='object'){
+  for(const idv of removedIds)delete target.readState[idv];
+ }
+
+ target.dataVersion=MI_CURRENT_DATA_VERSION;
+ return target;
+}
+
 function migrateState(){
+ state=miPurgeLegacyDemoState(state||initialState());
  state.me=state.me||initialState().me;
  state.settings=Object.assign({dark:true,compact:false},state.settings||{});
  if(!state.designVersion||state.designVersion<5){
@@ -27,6 +85,7 @@ function migrateState(){
    }
   }
  }
+ state.dataVersion=MI_CURRENT_DATA_VERSION;
 }
 migrateState();
 
@@ -38,19 +97,49 @@ function miActivateAuthenticatedState(userId){
 
  try{
   const userState=localStorage.getItem(nextKey);
+
   if(userState){
    nextState=JSON.parse(userState);
   }else{
-   const legacy=localStorage.getItem(MI_STATE_BASE_KEY);
-   nextState=legacy?JSON.parse(legacy):initialState();
+   // New authenticated users start clean.
+   // Only appearance preferences may migrate from the old anonymous state;
+   // conversations never do.
+   nextState=initialState();
+
+   const legacyRaw=localStorage.getItem(MI_STATE_BASE_KEY);
+   if(legacyRaw){
+    try{
+     const legacy=JSON.parse(legacyRaw);
+     if(legacy?.settings){
+      nextState.settings=Object.assign({},nextState.settings,legacy.settings);
+     }
+    }catch(e){}
+   }
   }
  }catch(e){
   nextState=initialState();
  }
 
  miStateStorageKey=nextKey;
- state=nextState||initialState();
+ state=miPurgeLegacyDemoState(nextState||initialState());
  migrateState();
+
+ // Account switch must never keep a conversation from the previous session.
+ active=null;
+ filter='all';
+ query='';
+ chatSearchOpen=false;
+ chatSearchQuery='';
+ replyTarget=null;
+ pendingAttachment=null;
+ editTarget=null;
+ miRemoteInboxReady=false;
+ miRemoteInboxLoading=false;
+ miRemoteInboxError='';
+
+ const searchInput=document.getElementById('search');
+ if(searchInput)searchInput.value='';
+
  applySettings();
  persist();
 }
@@ -70,8 +159,9 @@ function applySettings(){
 }
 applySettings();
 
-let active='alex',view='chats',filter='all',query='',chatSearchOpen=false,chatSearchQuery='',replyTarget=null,pendingAttachment=null,threadCtx=null,callTimer=null,callSeconds=0,exploreCategory='All';
+let active=null,view='chats',filter='all',query='',chatSearchOpen=false,chatSearchQuery='',replyTarget=null,pendingAttachment=null,threadCtx=null,callTimer=null,callSeconds=0,exploreCategory='All';
 let editTarget=null,forwardTarget=null,typingTimer=null,typingConversation=null;
+let miRemoteInboxReady=false,miRemoteInboxLoading=false,miRemoteInboxError='';
 
 const list=document.getElementById('list'),chat=document.getElementById('chat'),details=document.getElementById('details');
 const A=(i,opt='')=>`<span class="avatar ${opt}">${esc(i)}</span>`;

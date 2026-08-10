@@ -1,0 +1,299 @@
+/* =========================================================
+   mi.net v10 — clean inbox / first-run experience
+   ========================================================= */
+
+.inbox-welcome {
+  width: min(560px, calc(100% - 40px));
+  margin: auto;
+  padding: 28px;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.inbox-welcome-mark {
+  width: 68px;
+  height: 68px;
+  margin-bottom: 18px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg,var(--accent),var(--blue));
+  color: #fff;
+  font-size: 17px;
+  font-weight: 860;
+  letter-spacing: -.06em;
+  box-shadow: 0 18px 42px rgba(111,69,255,.26);
+}
+
+.inbox-welcome-loading .inbox-welcome-mark {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.inbox-eyebrow {
+  margin-bottom: 8px;
+  color: var(--accent-2);
+  font-size: 8px;
+  font-weight: 820;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.inbox-welcome h1 {
+  margin: 0;
+  font-size: clamp(22px,3vw,30px);
+  letter-spacing: -.05em;
+}
+
+.inbox-welcome p {
+  max-width: 430px;
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.inbox-welcome-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.inbox-welcome-actions button {
+  min-height: 39px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.inbox-welcome-hints {
+  width: min(430px,100%);
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 9px;
+}
+
+.inbox-welcome-hints span {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.inbox-welcome-hints b {
+  width: 19px;
+  height: 19px;
+  margin: 0 auto 6px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+  color: var(--accent-2);
+  font-size: 8px;
+}
+
+.inbox-list-state {
+  margin: 42px 12px 0;
+  min-height: 150px;
+  padding: 20px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 7px;
+  text-align: center;
+  color: var(--muted);
+  background:
+    radial-gradient(circle at 50% 0,var(--accent-soft),transparent 52%),
+    transparent;
+}
+
+.inbox-list-state strong,
+.inbox-list-state small {
+  display: block;
+}
+
+.inbox-list-state strong {
+  color: var(--text);
+  font-size: 10px;
+}
+
+.inbox-list-state small {
+  max-width: 210px;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.inbox-list-state.is-error {
+  border-color: color-mix(in srgb,var(--danger) 34%,var(--border));
+}
+
+.inbox-list-state.is-error strong {
+  color: var(--danger);
+}
+
+.inbox-list-icon {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 3px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+
+.inbox-list-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.inbox-list-actions {
+  margin-top: 7px;
+  display: flex;
+  gap: 6px;
+}
+
+.inbox-list-actions button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 9px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 760;
+}
+
+.inbox-list-actions button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+
+/* Registered people directory -------------------------------------------- */
+
+.contacts-directory .pagehead {
+  padding-bottom: 6px;
+}
+
+.contacts-search-wrap {
+  padding: 6px 12px 10px;
+}
+
+.contacts-results {
+  padding: 0 8px 20px;
+  display: grid;
+  gap: 5px;
+}
+
+.contact-directory-row {
+  width: 100%;
+  min-height: 64px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 8px 9px;
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr) 32px;
+  gap: 10px;
+  align-items: center;
+  background: transparent;
+  text-align: left;
+  transition:
+    background var(--ease),
+    border-color var(--ease),
+    transform var(--ease);
+}
+
+.contact-directory-row:hover {
+  border-color: var(--border);
+  background: var(--panel-2);
+  transform: translateY(-1px);
+}
+
+.contact-directory-row .avatar {
+  width: 42px;
+  height: 42px;
+  font-size: 9px;
+}
+
+.contact-directory-row .copy {
+  min-width: 0;
+}
+
+.contact-directory-row .copy strong,
+.contact-directory-row .copy small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-directory-row .copy strong {
+  font-size: 10px;
+}
+
+.contact-directory-row .copy small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.contact-message-action {
+  width: 31px;
+  height: 31px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+
+.contact-message-action svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+}
+
+@media(max-width:760px) {
+  .inbox-welcome {
+    width: min(500px,calc(100% - 20px));
+    padding: 22px 10px 84px;
+  }
+
+  .inbox-welcome-hints {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .inbox-welcome-hints span {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    align-items: center;
+    text-align: left;
+  }
+
+  .inbox-welcome-hints b {
+    margin: 0;
+  }
+
+  .inbox-welcome-actions {
+    width: 100%;
+  }
+
+  .inbox-welcome-actions button {
+    flex: 1 1 130px;
+    justify-content: center;
+  }
+}

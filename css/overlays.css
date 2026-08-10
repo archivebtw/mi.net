@@ -18,3 +18,26 @@
 .toastbox{position:fixed;right:16px;bottom:16px;z-index:150;display:grid;gap:8px}.toast{min-width:220px;background:var(--invert);color:var(--invertText);border-radius:7px;padding:10px 12px;font-size:10px}
 .mobilebar{display:none}
 body.compact .conv{min-height:58px;padding-top:6px;padding-bottom:6px}body.compact .messages{padding-top:18px}body.compact .msg{margin-bottom:11px}
+
+
+/* Username moderation validation */
+.field input.field-invalid{
+  border-color:#9f2222;
+  box-shadow:0 0 0 1px rgba(159,34,34,.08);
+}
+
+.field-error{
+  display:block;
+  margin-top:-2px;
+  color:#9f2222;
+  font-size:9px;
+  line-height:1.4;
+}
+
+body.dark .field input.field-invalid{
+  border-color:#d46767;
+}
+
+body.dark .field-error{
+  color:#e08080;
+}

@@ -22,12 +22,68 @@ document.getElementById('savePublic').onclick=()=>{
  if(m==='hybrid')c.posts=[{id:id(),t:'now',x:'Welcome to '+n+'.',r:0,l:0,liked:false,replies:[]}];else c.messages=[{id:id(),a:state.me.name,i:state.me.initials,t:'now',x:'Welcome to '+n+'.',own:1,reactions:0}];
  state.conversations.unshift(c);persist();closeModal('publicModal');nav('chats');openConv(c.id);toast('Public created')
 };
+function ensureUsernameErrorElement(){
+ const input=document.getElementById('profileHandle');
+ if(!input)return null;
+
+ let error=document.getElementById('profileHandleError');
+ if(error)return error;
+
+ error=document.createElement('small');
+ error.id='profileHandleError';
+ error.className='field-error';
+ error.hidden=true;
+ error.setAttribute('aria-live','polite');
+ input.insertAdjacentElement('afterend',error);
+ input.setAttribute('aria-describedby','profileHandleError');
+ return error;
+}
+
+function validateProfileUsername({report=false}={}){
+ const input=document.getElementById('profileHandle');
+ const error=ensureUsernameErrorElement();
+ if(!input)return {ok:false,message:'Username field not found.'};
+
+ const result=miCheckUsername(input.value);
+ miSetUsernameValidation(input,result,error);
+
+ if(report&&!result.ok)input.reportValidity();
+ return result;
+}
+
 function openProfileEditor(){
- document.getElementById('profileName').value=state.me.name;document.getElementById('profileHandle').value=state.me.handle;document.getElementById('profileBio').value=state.me.bio;openModal('profileModal')
+ document.getElementById('profileName').value=state.me.name;
+ document.getElementById('profileHandle').value=state.me.handle;
+ document.getElementById('profileBio').value=state.me.bio;
+
+ const handleInput=document.getElementById('profileHandle');
+ handleInput.oninput=()=>validateProfileUsername();
+ handleInput.onblur=()=>validateProfileUsername();
+
+ ensureUsernameErrorElement();
+ validateProfileUsername();
+ openModal('profileModal');
 }
 document.getElementById('saveProfile').onclick=()=>{
- let name=document.getElementById('profileName').value.trim(),handle=document.getElementById('profileHandle').value.trim().replace(/\s+/g,'');if(!name||!handle)return toast('Name and username are required');if(!handle.startsWith('@'))handle='@'+handle;
- state.me.name=name;state.me.handle=handle;state.me.bio=document.getElementById('profileBio').value.trim();state.me.initials=initials(name);document.getElementById('profileOrb').textContent=state.me.initials;persist();closeModal('profileModal');if(view==='profile')renderProfile();toast('Profile saved')
+ const name=document.getElementById('profileName').value.trim();
+ if(!name)return toast('Name is required');
+
+ const usernameResult=validateProfileUsername({report:true});
+ if(!usernameResult.ok){
+  toast('Choose another username');
+  return;
+ }
+
+ state.me.name=name;
+ state.me.handle=usernameResult.value;
+ state.me.bio=document.getElementById('profileBio').value.trim();
+ state.me.initials=initials(name);
+ document.getElementById('profileOrb').textContent=state.me.initials;
+
+ persist();
+ closeModal('profileModal');
+ if(view==='profile')renderProfile();
+ toast('Profile saved');
 };
 function openSettings(){
  document.getElementById('darkSwitch').classList.toggle('on',!!state.settings.dark);document.getElementById('compactSwitch').classList.toggle('on',!!state.settings.compact);openModal('settingsModal')

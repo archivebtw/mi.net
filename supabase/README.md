@@ -1,45 +1,45 @@
-# Supabase user search patch
+# mi.net Realtime Direct v1.1 SQL fix
 
-До этого окно **New message** использовало локальный JavaScript-массив demo-контактов.
-Поэтому зарегистрированные Supabase-пользователи не могли появиться в поиске.
+Исправлена ошибка:
 
-Теперь поиск работает по:
+```text
+ERROR: 42P01: relation "public.message_reactions" does not exist
+```
 
-`public.profiles`
+Причина была в порядке SQL-команд: `ALTER TABLE public.message_reactions`
+выполнялся до `CREATE TABLE public.message_reactions`.
 
-и ищет:
+## Что делать
 
-- username;
-- display name.
+1. Не нужно вручную удалять созданные таблицы.
+2. Открой Supabase → SQL Editor.
+3. Создай новый query.
+4. Вставь весь файл:
 
-Текущий аккаунт исключается из результатов.
+`supabase/realtime_direct_v1_1_fix.sql`
 
-## Установка
+5. Нажми Run.
 
-1. Замени файлы из этого архива в репозитории.
-2. В Supabase → SQL Editor запусти:
+Предыдущий запрос был обёрнут в `BEGIN ... COMMIT`. Если он остановился на
+42P01, транзакция не должна была закоммитить изменения этого запуска.
 
-`supabase/profiles_search_fix.sql`
+## Что должно появиться в конце
 
-3. В конце SQL появится таблица-диагностика.
+Первая диагностическая выборка:
 
-У каждого зарегистрированного Auth-пользователя должно быть:
+```text
+conversation_members
+message_reactions
+messages
+```
 
-`profile_status = OK`
+Вторая:
 
-4. Загрузи изменения на GitHub Pages.
-5. Сделай `Ctrl + Shift + R`.
+```text
+conversations          public.conversations
+conversation_members   public.conversation_members
+messages               public.messages
+message_reactions       public.message_reactions
+```
 
-В Network должны загружаться:
-
-- `navigation.js?v=20260810-4`
-- `create.js?v=20260810-4`
-- `auth.js?v=20260810-4`
-
-## Важно
-
-Этот patch делает **реальный поиск зарегистрированных аккаунтов** через Supabase.
-
-Сам Direct пока использует текущую локальную механику сообщений mi.net. То есть пользователь
-будет найден и диалог можно открыть, но синхронизация сообщений между двумя браузерами/аккаунтами
-потребует следующего backend-слоя: `conversations`, `conversation_members`, `messages` + Supabase Realtime.
+После успешного выполнения SQL frontend-файлы повторно менять не нужно.

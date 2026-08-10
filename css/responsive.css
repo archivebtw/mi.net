@@ -146,3 +146,41 @@
 body.compact .conv{min-height:58px;padding-top:6px;padding-bottom:6px}
 body.compact .messages{padding-top:18px}
 body.compact .msg{margin-bottom:11px}
+
+
+/* =========================================================
+   Dynamic viewport containment on mobile
+   ========================================================= */
+@media(max-width:760px){
+  .app {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .listpane {
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .chatpane {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .messages {
+    height: 0;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+
+  .message-media img,
+  .message-media video {
+    max-height: 52dvh;
+  }
+}

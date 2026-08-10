@@ -621,3 +621,93 @@
 .publish-attachment-preview strong,.publish-attachment-preview small{display:block}
 .publish-attachment-preview strong{font-size:10px}
 .publish-attachment-preview small{margin-top:2px;color:var(--muted);font-size:9px}
+
+
+/* =========================================================
+   Chat viewport / rich-media containment fix
+   ========================================================= */
+.chatpane {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.chathead,
+.chatsearch,
+.pinned-banner,
+.replybar,
+.attachbar,
+.publish-attachment-preview,
+.composer {
+  flex-shrink: 0;
+}
+
+.messages {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
+/* A single rich message must never determine the app's height. */
+.message-column,
+.bubble,
+.message-richtext,
+.publicpost,
+.pubbody {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.message-media {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.message-media img,
+.message-media video {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(58vh, 520px);
+}
+
+.message-media.is-image img {
+  object-fit: contain;
+}
+
+.message-media.is-video video {
+  object-fit: contain;
+}
+
+/* Link previews should wrap instead of widening/expanding the chat. */
+.site-link-preview {
+  max-width: 100%;
+}
+
+.site-link-preview__body,
+.site-link-preview__copy {
+  min-width: 0;
+}
+
+/* Composer always remains visible at the bottom of the chat pane. */
+.composer {
+  position: relative;
+  z-index: 30;
+  width: 100%;
+  margin-top: auto;
+}
+
+/* Long messages and URLs cannot create layout overflow. */
+.message-text,
+.message-richtext,
+.message-link,
+.preview {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

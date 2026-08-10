@@ -66,11 +66,14 @@ function miCheckUsername(username){
     return {ok:false, code:'long', message:'Username must be 24 characters or fewer.'};
   }
 
-  if(!/^[a-zA-Z0-9_.-]+$/.test(cleanHandle)){
+  // Usernames on mi.net are intentionally ASCII-only.
+  // This rejects Cyrillic, CJK, Arabic, accented Latin letters, emoji,
+  // homoglyphs and every other non-English Unicode character.
+  if(!/^[A-Za-z0-9_.-]+$/.test(cleanHandle)){
     return {
       ok:false,
-      code:'characters',
-      message:'Use only Latin letters, numbers, _, . and -.'
+      code:'english-only',
+      message:'Username can contain only English letters (A–Z), numbers, _, . and -.'
     };
   }
 
@@ -127,4 +130,10 @@ function miSetUsernameValidation(input, result, errorElement){
   }
 
   return result;
+}
+
+
+function miUsernameUsesEnglishOnly(value){
+  const clean = String(value || '').trim().replace(/^@+/, '');
+  return /^[A-Za-z0-9_.-]*$/.test(clean);
 }

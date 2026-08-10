@@ -57,6 +57,15 @@ function openProfileEditor(){
  document.getElementById('profileBio').value=state.me.bio;
 
  const handleInput=document.getElementById('profileHandle');
+
+ // Username input is explicitly configured for an English/ASCII handle.
+ handleInput.setAttribute('inputmode','text');
+ handleInput.setAttribute('autocomplete','username');
+ handleInput.setAttribute('autocapitalize','none');
+ handleInput.setAttribute('spellcheck','false');
+ handleInput.setAttribute('lang','en');
+ handleInput.setAttribute('maxlength','25');
+
  handleInput.oninput=()=>validateProfileUsername();
  handleInput.onblur=()=>validateProfileUsername();
 

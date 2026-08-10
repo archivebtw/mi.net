@@ -1,22 +1,40 @@
-# mi.net username verification hotfix
+# mi.net Auth v2 fix
 
-Ошибка `Could not verify username` означает, что браузер не смог вызвать
-Supabase RPC `public.is_username_available(candidate text)`.
+Эта версия полностью убирает `is_username_available()` из критического пути
+регистрации.
 
-## Что сделать
+## Почему
 
-1. Открой Supabase Dashboard → SQL Editor.
-2. Запусти `supabase/username_rpc_hotfix.sql`.
-3. Подожди несколько секунд и обнови сайт.
-4. Замени `js/auth.js` файлом из этого патча.
+Frontend-проверка доступности username — только удобство интерфейса.
+Уникальность и допустимость username должны проверяться атомарно в PostgreSQL.
 
-SQL заново создаёт функцию, выдаёт `anon`/`authenticated` право на её вызов
-и выполняет:
+Теперь регистрацию защищают:
 
-```sql
-notify pgrst, 'reload schema';
+- `profiles_username_lower_unique`
+- `profiles_username_allowed`
+- `handle_new_user()` trigger
+
+## Установка
+
+1. Замени `index.html`.
+2. Замени `js/auth.js`.
+3. Запусти `supabase/auth_v2_db_fix.sql` в Supabase SQL Editor.
+4. Сделай hard refresh сайта: `Ctrl + Shift + R`.
+
+В `index.html` уже добавлен cache-busting:
+
+```html
+<script src="js/auth.js?v=20260810-2"></script>
 ```
 
-Frontend-патч также делает проверку доступности username только предварительной:
-временная ошибка RPC больше не блокирует регистрацию. Финальная уникальность и
-валидность username всё равно проверяются PostgreSQL.
+Поэтому старый `auth.js` не должен оставаться в кэше.
+
+## Проверка
+
+Открой DevTools → Sources / Network и найди `auth.js?v=20260810-2`.
+
+В первой строке файла должно быть:
+
+```js
+// mi.net auth build: 2026-08-10-v2-no-rpc-block
+```

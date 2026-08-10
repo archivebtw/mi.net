@@ -21,3 +21,13 @@
 .type{color:var(--muted);font-size:9px}.preview{margin-top:4px;color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .convmeta{display:flex;flex-direction:column;align-items:flex-end;gap:6px}.convmeta time{font-size:9px;color:var(--muted)}
 .badge{min-width:18px;height:18px;border-radius:999px;background:var(--invert);color:var(--invertText);display:grid;place-items:center;padding:0 5px;font-size:9px}
+
+
+/* Massive update: pinned conversations, drafts and richer list states */
+.conv.pinned{background:color-mix(in srgb,var(--soft) 68%,transparent)}
+.conv.pinned:hover,.conv.pinned.active{background:var(--soft)}
+.draft-label{color:var(--text);font-weight:700}
+.conv .preview{line-height:1.35}
+.conv.active{box-shadow:inset 2px 0 0 var(--invert)}
+.sectionlabel{display:flex;align-items:center;gap:6px}
+.sectionlabel::after{content:"";height:1px;flex:1;background:var(--border)}

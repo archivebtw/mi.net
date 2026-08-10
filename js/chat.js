@@ -71,23 +71,62 @@ function reactionSummaryHtml(m){
  </div>`;
 }
 
+function messageStatusHtml(m){
+ if(!m.own)return '';
+ const status=m.status||'read';
+ const glyph=status==='read'?svg('check2'):svg('check');
+ return `<span class="message-status ${status}" title="${status==='read'?'Read':'Sent'}">${glyph}</span>`;
+}
+
+function pinnedBannerHtml(c){
+ const pid=pinnedMessageId(c.id);
+ if(!pid||!c.messages)return '';
+ const m=c.messages.find(x=>x.id===pid);
+ if(!m)return '';
+ return `<button class="pinned-banner" id="pinnedBanner" data-scroll-msg="${m.id}">
+  <span class="pinned-banner__icon">${svg('pin')}</span>
+  <span><strong>Pinned message</strong><small>${esc(m.x||m.file?.name||'Attachment').slice(0,90)}</small></span>
+  <span class="pinned-banner__jump">View</span>
+ </button>`;
+}
+
 function msg(m){
  const hit=chatSearchQuery&&`${m.a} ${m.x||''} ${m.file?.name||''}`.toLowerCase().includes(chatSearchQuery.toLowerCase());
- return `<article class="msg ${m.own?'own':''} ${hit?'search-hit':''}" data-msg="${m.id}">${A(m.i,m.own?'dark':'')}<div><div class="author"><strong>${esc(m.a)}</strong><time>${esc(m.t)}</time></div>
- ${m.reply?`<div class="replyquote"><strong>${esc(m.reply.a)}</strong><br>${esc(m.reply.x).slice(0,100)}</div>`:''}
- <div class="bubble">${m.x?esc(m.x):''}${m.file?`<div class="filecard"><span class="icon">${svg(m.file.type?.startsWith('image/')?'image':'file')}</span><div class="filemeta"><strong>${esc(m.file.name)}</strong><small>${esc(m.file.type||'file')} · ${formatSize(m.file.size||0)}</small></div></div>`:''}</div>
- <div class="msgactions">${reactionSummaryHtml(m)}<button class="react reply-action" data-reply="${m.id}">Reply</button></div></div></article>`;
+ return `<article class="msg ${m.own?'own':''} ${hit?'search-hit':''}" data-msg="${m.id}">
+ ${A(m.i,m.own?'dark':'')}
+ <div class="message-column">
+  <div class="author"><strong>${esc(m.a)}</strong><time>${esc(m.t)}${m.edited?' · edited':''}</time>${messageStatusHtml(m)}</div>
+  ${m.reply?`<div class="replyquote"><strong>${esc(m.reply.a)}</strong><br>${esc(m.reply.x).slice(0,100)}</div>`:''}
+  <div class="bubble" data-message-bubble="${m.id}">
+   ${m.forwardedFrom?`<div class="forwarded-label">${svg('forward')} Forwarded from ${esc(m.forwardedFrom)}</div>`:''}
+   ${m.x?`<span class="message-text">${esc(m.x)}</span>`:''}
+   ${m.file?`<div class="filecard"><span class="icon">${svg(m.file.type?.startsWith('image/')?'image':'file')}</span><div class="filemeta"><strong>${esc(m.file.name)}</strong><small>${esc(m.file.type||'file')} · ${formatSize(m.file.size||0)}</small></div></div>`:''}
+  </div>
+  <div class="message-tools">
+   <button class="message-tool" data-quick-reply="${m.id}" title="Reply">${svg('forward')}</button>
+   <button class="message-tool" data-message-more="${m.id}" title="More">${svg('more')}</button>
+  </div>
+  <div class="msgactions">${reactionSummaryHtml(m)}</div>
+ </div>
+ </article>`;
 }
 function composerHtml(c,placeholder){
- return `${replyTarget?`<div class="replybar"><div><strong>Reply to ${esc(replyTarget.a)}</strong><span>${esc(replyTarget.x||replyTarget.file?.name||'Attachment').slice(0,90)}</span></div><button class="mini-close" id="cancelReply">×</button></div>`:''}
- ${pendingAttachment?`<div class="attachbar"><div><strong>${esc(pendingAttachment.name)}</strong><span>${esc(pendingAttachment.type||'file')} · ${formatSize(pendingAttachment.size)}</span></div><button class="mini-close" id="cancelAttach">×</button></div>`:''}
- <footer class="composer ${(replyTarget||pendingAttachment)?'has-top':''}"><button class="iconbtn" id="attachBtn" title="Attach"><span class="icon">${svg('paperclip')}</span></button><textarea id="messageInput" placeholder="${esc(placeholder)}"></textarea><button class="send" id="sendBtn"><span class="icon">${svg('send')}</span></button></footer>`;
+ const draft=editTarget?'':draftFor(c.id);
+ return `${editTarget?`<div class="replybar editbar"><div><strong>Editing message</strong><span>${esc(editTarget.x||'').slice(0,90)}</span></div><button class="mini-close" id="cancelEdit">×</button></div>`:''}
+ ${replyTarget&&!editTarget?`<div class="replybar"><div><strong>Reply to ${esc(replyTarget.a)}</strong><span>${esc(replyTarget.x||replyTarget.file?.name||'Attachment').slice(0,90)}</span></div><button class="mini-close" id="cancelReply">×</button></div>`:''}
+ ${pendingAttachment&&!editTarget?`<div class="attachbar"><div><strong>${esc(pendingAttachment.name)}</strong><span>${esc(pendingAttachment.type||'file')} · ${formatSize(pendingAttachment.size)}</span></div><button class="mini-close" id="cancelAttach">×</button></div>`:''}
+ <footer class="composer ${(replyTarget||pendingAttachment||editTarget)?'has-top':''}">
+  <button class="iconbtn" id="attachBtn" title="Attach" ${editTarget?'disabled':''}><span class="icon">${svg('paperclip')}</span></button>
+  <textarea id="messageInput" placeholder="${esc(editTarget?'Edit message':placeholder)}">${esc(editTarget?editTarget.x||'':draft)}</textarea>
+  <div class="composer-meta"><span class="draft-state" id="draftState">${draft&&!editTarget?'draft':''}</span><button class="send" id="sendBtn" title="${editTarget?'Save changes':'Send'}"><span class="icon">${svg(editTarget?'check':'send')}</span></button></div>
+ </footer>`;
 }
 function renderChat(c){
  const q=chatSearchQuery.trim().toLowerCase();
  const msgs=(c.messages||[]).filter(m=>!q||`${m.a} ${m.x||''} ${m.file?.name||''}`.toLowerCase().includes(q));
  chat.innerHTML=`<header class="chathead">${A(c.initials,c.kind!=='direct'?'square'+(c.kind==='public'?' dark':''):'')}<div class="chatname"><strong>${esc(c.name)}</strong><span>${esc(c.subtitle||'')}</span></div><div class="chatactions">${c.kind==='direct'?`<button class="iconbtn" id="callBtn" title="Call"><span class="icon">${svg('phone')}</span></button>`:''}<button class="iconbtn" id="chatSearchBtn" title="Search"><span class="icon">${svg('search')}</span></button><button class="iconbtn" id="chatMoreBtn" title="More"><span class="icon">${svg('more')}</span></button></div></header>
  ${chatSearchOpen?`<div class="chatsearch"><input id="chatSearchInput" value="${esc(chatSearchQuery)}" placeholder="Search in ${esc(c.name)}"><button class="iconbtn" id="closeChatSearch">${svg('x')}</button></div>`:''}
+ ${pinnedBannerHtml(c)}
  <section class="messages" id="messages"><div class="day">${q?`${msgs.length} result${msgs.length===1?'':'s'}`:'Today'}</div>${msgs.length?msgs.map(msg).join(''):`<div class="empty"><p>No matching messages.</p></div>`}</section>
  ${composerHtml(c,'Message '+c.name)}`;
  bindChat(c);
@@ -108,16 +147,217 @@ function bindHeaderCommon(c){
 }
 function bindChat(c){
  bindHeaderCommon(c);
+ bindPinnedBanner(c);
+
  const call=document.getElementById('callBtn');if(call)call.onclick=()=>startCall(c);
  const input=document.getElementById('messageInput'),send=document.getElementById('sendBtn');
- const go=()=>{let x=input.value.trim();if(!x&&!pendingAttachment)return;const m={id:id(),a:state.me.name,i:state.me.initials,t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),x,own:1,reactions:0,reactionMap:{}};if(replyTarget)m.reply={a:replyTarget.a,x:replyTarget.x||replyTarget.file?.name||'Attachment'};if(pendingAttachment)m.file={...pendingAttachment};c.messages=c.messages||[];c.messages.push(m);c.preview=x||('Attached '+pendingAttachment.name);c.time='now';replyTarget=null;pendingAttachment=null;persist();renderChat(c);renderList();setTimeout(scrollBottom,0)};
- send.onclick=go;input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go()}};
- document.getElementById('attachBtn').onclick=()=>document.getElementById('filePicker').click();
+
+ const go=()=>{
+  let x=input.value.trim();
+
+  if(editTarget){
+   if(!x)return toast('Message cannot be empty');
+   editTarget.x=x;
+   editTarget.edited=true;
+   editTarget=null;
+   setDraft(c.id,'');
+   persist();
+   renderChat(c);
+   renderList();
+   toast('Message edited');
+   return;
+  }
+
+  if(!x&&!pendingAttachment)return;
+
+  const m={
+   id:id(),a:state.me.name,i:state.me.initials,
+   t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+   x,own:1,reactions:0,reactionMap:{},status:'sent'
+  };
+  if(replyTarget)m.reply={a:replyTarget.a,x:replyTarget.x||replyTarget.file?.name||'Attachment'};
+  if(pendingAttachment)m.file={...pendingAttachment};
+
+  c.messages=c.messages||[];
+  c.messages.push(m);
+  c.preview=x||('Attached '+pendingAttachment.name);
+  c.time='now';
+  replyTarget=null;
+  pendingAttachment=null;
+  setDraft(c.id,'');
+  persist();
+  renderChat(c);
+  renderList();
+  setTimeout(scrollBottom,0);
+
+  // Demo delivery lifecycle: sent -> read.
+  setTimeout(()=>{
+   const latest=conv(c.id)?.messages?.find(item=>item.id===m.id);
+   if(latest&&latest.status!=='read'){
+    latest.status='read';
+    persist();
+    if(active===c.id)renderChat(c);
+   }
+  },900);
+ };
+
+ send.onclick=go;
+ input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go()}};
+ input.oninput=()=>{
+  if(!editTarget)setDraft(c.id,input.value);
+  const stateEl=document.getElementById('draftState');
+  if(stateEl&&!editTarget)stateEl.textContent=input.value.trim()?'draft':'';
+  if(view==='chats')renderList();
+ };
+
+ const attach=document.getElementById('attachBtn');if(attach)attach.onclick=()=>document.getElementById('filePicker').click();
  const cr=document.getElementById('cancelReply');if(cr)cr.onclick=()=>{replyTarget=null;renderChat(c)};
  const ca=document.getElementById('cancelAttach');if(ca)ca.onclick=()=>{pendingAttachment=null;renderChat(c)};
+ const ce=document.getElementById('cancelEdit');if(ce)ce.onclick=()=>{editTarget=null;renderChat(c)};
+
  bindMessageReactions(c);
- chat.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{replyTarget=c.messages.find(x=>x.id===b.dataset.reply);renderChat(c);setTimeout(()=>document.getElementById('messageInput')?.focus(),0)});
+
+ chat.querySelectorAll('[data-quick-reply]').forEach(b=>b.onclick=()=>{
+  replyTarget=c.messages.find(x=>x.id===b.dataset.quickReply);
+  editTarget=null;
+  renderChat(c);
+  setTimeout(()=>document.getElementById('messageInput')?.focus(),0);
+ });
+
+ chat.querySelectorAll('[data-message-more]').forEach(b=>b.onclick=e=>{
+  e.stopPropagation();
+  const m=c.messages.find(x=>x.id===b.dataset.messageMore);
+  if(m)openMessageMenu(e.currentTarget,c,m);
+ });
+
+ chat.querySelectorAll('[data-message-bubble]').forEach(el=>el.oncontextmenu=e=>{
+  e.preventDefault();
+  const m=c.messages.find(x=>x.id===el.dataset.messageBubble);
+  if(m)openMessageMenuAt(e.clientX,e.clientY,c,m);
+ });
 }
+
+function bindPinnedBanner(c){
+ const banner=document.getElementById('pinnedBanner');
+ if(!banner)return;
+ banner.onclick=()=>{
+  const target=chat.querySelector(`[data-msg="${banner.dataset.scrollMsg}"]`);
+  if(target){
+   target.scrollIntoView({behavior:'smooth',block:'center'});
+   target.classList.add('message-flash');
+   setTimeout(()=>target.classList.remove('message-flash'),900);
+  }
+ };
+}
+
+function ensureMessagePopover(){
+ let p=document.getElementById('messagePopover');
+ if(!p){
+  p=document.createElement('div');
+  p.id='messagePopover';
+  p.className='popover message-popover';
+  p.hidden=true;
+  document.body.append(p);
+ }
+ return p;
+}
+
+function copyMessageText(m){
+ const value=m.x||m.file?.name||'';
+ if(!value)return toast('Nothing to copy');
+ if(navigator.clipboard?.writeText){
+  navigator.clipboard.writeText(value).then(()=>toast('Copied')).catch(()=>toast(value));
+ }else toast(value);
+}
+
+function pinMessage(c,m){
+ if(pinnedMessageId(c.id)===m.id)setPinnedMessage(c.id,null);
+ else setPinnedMessage(c.id,m.id);
+ renderChat(c);detail(c);
+ toast(pinnedMessageId(c.id)===m.id?'Message pinned':'Message unpinned');
+}
+
+function editMessage(c,m){
+ if(!m.own)return;
+ editTarget=m;replyTarget=null;pendingAttachment=null;
+ renderChat(c);
+ setTimeout(()=>{const input=document.getElementById('messageInput');if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length)}},0);
+}
+
+function deleteMessage(c,m){
+ if(!confirm('Delete this message?'))return;
+ c.messages=c.messages.filter(x=>x.id!==m.id);
+ if(pinnedMessageId(c.id)===m.id)setPinnedMessage(c.id,null);
+ c.preview=c.messages.at(-1)?.x||'Message deleted';
+ persist();renderChat(c);renderList();detail(c);toast('Message deleted');
+}
+
+function openForwardModal(sourceConversation,m){
+ let modal=document.getElementById('forwardMessageModal');
+ if(!modal){
+  modal=document.createElement('div');
+  modal.id='forwardMessageModal';
+  modal.className='modalback';
+  modal.hidden=true;
+  document.body.append(modal);
+ }
+ forwardTarget={sourceConversation,m};
+ modal.innerHTML=`<section class="modal">
+  <header class="modalhead"><button class="iconbtn" id="closeForward">${svg('x')}</button><strong>Forward message</strong><span></span></header>
+  <div class="modalbody">
+   <div class="forward-preview"><strong>${esc(m.a)}</strong><p>${esc(m.x||m.file?.name||'Attachment')}</p></div>
+   <div class="sectionlabel" style="padding-left:0">Send to</div>
+   <div class="forward-list">${state.conversations.filter(c=>c.id!==sourceConversation.id&&c.messages).map(c=>`
+    <button class="forward-row" data-forward-to="${c.id}">${A(c.initials,c.kind!=='direct'?'square':'')}<span><strong>${esc(c.name)}</strong><small>${esc(c.subtitle||c.handle||'')}</small></span>${svg('forward')}</button>`).join('')}</div>
+  </div></section>`;
+ modal.hidden=false;
+ document.getElementById('closeForward').onclick=()=>modal.hidden=true;
+ modal.onclick=e=>{if(e.target===modal)modal.hidden=true};
+ modal.querySelectorAll('[data-forward-to]').forEach(b=>b.onclick=()=>{
+  const dest=conv(b.dataset.forwardTo);
+  const forwarded={
+   id:id(),a:state.me.name,i:state.me.initials,t:'now',
+   x:m.x||'',own:1,reactions:0,reactionMap:{},status:'sent',
+   forwardedFrom:m.a
+  };
+  if(m.file)forwarded.file={...m.file};
+  dest.messages=dest.messages||[];
+  dest.messages.push(forwarded);
+  dest.preview='Forwarded: '+(m.x||m.file?.name||'message');
+  dest.time='now';
+  persist();modal.hidden=true;renderList();toast('Message forwarded to '+dest.name);
+ });
+}
+
+function openMessageMenu(anchor,c,m){
+ const r=anchor.getBoundingClientRect();
+ openMessageMenuAt(Math.min(r.left,window.innerWidth-210),r.bottom+5,c,m);
+}
+
+function openMessageMenuAt(x,y,c,m){
+ const p=ensureMessagePopover();
+ const pinned=pinnedMessageId(c.id)===m.id;
+ p.innerHTML=`
+  <button data-mm="reply"><span class="icon">${svg('forward')}</span>Reply</button>
+  <button data-mm="copy"><span class="icon">${svg('copy')}</span>Copy text</button>
+  <button data-mm="forward"><span class="icon">${svg('forward')}</span>Forward</button>
+  <button data-mm="pin"><span class="icon">${svg('pin')}</span>${pinned?'Unpin':'Pin'} message</button>
+  ${m.own?`<button data-mm="edit"><span class="icon">${svg('edit')}</span>Edit</button><button class="danger" data-mm="delete"><span class="icon">${svg('trash')}</span>Delete</button>`:''}`;
+ p.style.left=Math.max(8,Math.min(x,window.innerWidth-215))+'px';
+ p.style.top=Math.max(8,Math.min(y,window.innerHeight-275))+'px';
+ p.hidden=false;
+ p.querySelector('[data-mm="reply"]').onclick=()=>{p.hidden=true;replyTarget=m;editTarget=null;renderChat(c);setTimeout(()=>document.getElementById('messageInput')?.focus(),0)};
+ p.querySelector('[data-mm="copy"]').onclick=()=>{p.hidden=true;copyMessageText(m)};
+ p.querySelector('[data-mm="forward"]').onclick=()=>{p.hidden=true;openForwardModal(c,m)};
+ p.querySelector('[data-mm="pin"]').onclick=()=>{p.hidden=true;pinMessage(c,m)};
+ const edit=p.querySelector('[data-mm="edit"]');if(edit)edit.onclick=()=>{p.hidden=true;editMessage(c,m)};
+ const del=p.querySelector('[data-mm="delete"]');if(del)del.onclick=()=>{p.hidden=true;deleteMessage(c,m)};
+}
+
+document.addEventListener('pointerdown',e=>{
+ const p=document.getElementById('messagePopover');
+ if(p&&!p.hidden&&!e.target.closest('#messagePopover')&&!e.target.closest('[data-message-more]'))p.hidden=true;
+});
 
 function closeMessageReactionPickers(exceptZone=null){
  chat.querySelectorAll('.reaction-zone.picker-open').forEach(zone=>{
@@ -218,14 +458,14 @@ function bindPublic(c){
 }
 function scrollBottom(){let m=document.getElementById('messages');if(m)m.scrollTop=m.scrollHeight}
 function openConv(idv){
- let c=conv(idv);if(!c)return;active=idv;c.unread=0;chatSearchOpen=false;chatSearchQuery='';replyTarget=null;pendingAttachment=null;renderConversation(c);detail(c);if(view==='chats')renderList();document.body.classList.add('chatopen');document.getElementById('mobileTitle').textContent=c.name;persist();setTimeout(scrollBottom,0)
+ let c=conv(idv);if(!c)return;active=idv;c.unread=0;chatSearchOpen=false;chatSearchQuery='';replyTarget=null;pendingAttachment=null;editTarget=null;renderConversation(c);detail(c);if(view==='chats')renderList();document.body.classList.add('chatopen');document.getElementById('mobileTitle').textContent=c.name;persist();setTimeout(scrollBottom,0)
 }
 function toggleMute(c){const i=state.muted.indexOf(c.id);if(i>=0)state.muted.splice(i,1);else state.muted.push(c.id);persist();detail(c);if(view==='chats')renderList();toast(state.muted.includes(c.id)?'Notifications muted':'Notifications enabled')}
 function openChatMenu(anchor,c){
  const p=document.getElementById('chatPopover');const muted=state.muted.includes(c.id);
- p.innerHTML=`<button id="menuMute"><span class="icon">${svg('bell')}</span>${muted?'Unmute':'Mute'} notifications</button><button id="menuSearch"><span class="icon">${svg('search')}</span>Search conversation</button>${c.kind!=='public'?`<button id="menuClear"><span class="icon">${svg('trash')}</span>Clear messages</button>`:''}<button class="danger" id="menuDelete"><span class="icon">${svg('trash')}</span>${c.kind==='public'?'Leave public':'Delete conversation'}</button>`;
+ p.innerHTML=`<button id="menuPin"><span class="icon">${svg('pin')}</span>${isPinnedConversation(c.id)?'Unpin':'Pin'} conversation</button><button id="menuUnread"><span class="icon">${svg('message')}</span>Mark as unread</button><button id="menuMute"><span class="icon">${svg('bell')}</span>${muted?'Unmute':'Mute'} notifications</button><button id="menuSearch"><span class="icon">${svg('search')}</span>Search conversation</button>${c.kind!=='public'?`<button id="menuClear"><span class="icon">${svg('trash')}</span>Clear messages</button>`:''}<button class="danger" id="menuDelete"><span class="icon">${svg('trash')}</span>${c.kind==='public'?'Leave public':'Delete conversation'}</button>`;
  let r=anchor.getBoundingClientRect();p.style.top=(r.bottom+6)+'px';p.style.left=Math.max(10,r.right-200)+'px';p.hidden=false;
- document.getElementById('menuMute').onclick=()=>{p.hidden=true;toggleMute(c)};
+ document.getElementById('menuPin').onclick=()=>{p.hidden=true;toggleConversationPin(c)};document.getElementById('menuUnread').onclick=()=>{p.hidden=true;c.unread=Math.max(1,c.unread||0);persist();renderList();toast('Marked as unread')};document.getElementById('menuMute').onclick=()=>{p.hidden=true;toggleMute(c)};
  document.getElementById('menuSearch').onclick=()=>{p.hidden=true;chatSearchOpen=true;renderConversation(c);setTimeout(()=>document.getElementById('chatSearchInput')?.focus(),0)};
  const clear=document.getElementById('menuClear');if(clear)clear.onclick=()=>{p.hidden=true;if(confirm('Clear all messages in this conversation?')){c.messages=[];c.preview='Conversation cleared';persist();renderChat(c);renderList()}};
  document.getElementById('menuDelete').onclick=()=>{p.hidden=true;if(confirm(c.kind==='public'?'Leave this public?':'Delete this conversation?')){state.conversations=state.conversations.filter(x=>x.id!==c.id);persist();active=state.conversations[0]?.id||null;chat.innerHTML=`<div class="empty"><div class="emptylogo">mi.net</div><h1>No conversation selected.</h1><p>Choose another chat or create a new one.</p></div>`;details.innerHTML='';renderList();document.body.classList.remove('chatopen')}};

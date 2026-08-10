@@ -16,6 +16,20 @@ document.getElementById('createBtn').onclick=e=>{e.stopPropagation();toggleCreat
 document.getElementById('mobileCreate').onclick=e=>{e.stopPropagation();toggleCreate(e.currentTarget)};
 create.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>{create.hidden=true;if(b.dataset.create==='direct')openDirectModal();if(b.dataset.create==='group')openGroupModal();if(b.dataset.create==='public'){document.getElementById('pubName').value='';document.getElementById('pubAddress').value='';document.getElementById('pubDesc').value='';openModal('publicModal')}});
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.popover').forEach(p=>p.hidden=true);document.querySelectorAll('.modalback').forEach(m=>{if(m.id!=='callModal')m.hidden=true})}});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){
+  document.querySelectorAll('.popover').forEach(p=>p.hidden=true);
+  document.querySelectorAll('.modalback').forEach(m=>{if(m.id!=='callModal')m.hidden=true});
+ }
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){
+  e.preventDefault();
+  document.getElementById('search').focus();
+ }
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){
+  e.preventDefault();
+  const button=document.getElementById('createBtn');
+  if(button)toggleCreate(button);
+ }
+});
 document.getElementById('profileOrb').textContent=state.me.initials;
 icons();nav('chats');if(conv(active))openConv(active);else renderList();

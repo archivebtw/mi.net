@@ -20,7 +20,14 @@ mic:'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M1
 volume:'<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
 trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/>',
 moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>',
-edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/>'
+edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"/>',
+pin:'<path d="m12 17-5 5M15 4l5 5-4 1-4.5 4.5L10 19l-5-5 4.5-1.5L14 8z"/>',
+copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+forward:'<path d="m15 7 5 5-5 5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>',
+check:'<path d="m5 12 4 4L19 6"/>',
+check2:'<path d="m1 12 4 4L15 6"/><path d="m9 12 4 4L23 6"/>',
+archive:'<path d="M3 6h18M5 6v14h14V6M9 10h6"/>'
+
 };
 const svg=n=>`<svg viewBox="0 0 24 24">${I[n]||I.more}</svg>`;
 function icons(root=document){root.querySelectorAll('[data-icon]').forEach(x=>x.innerHTML=svg(x.dataset.icon))}
